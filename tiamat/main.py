@@ -3,11 +3,13 @@ from os import system
 
 from AutoAccept import autoaccept
 from Backgrounds import change_background
+from Badges import change_profile_badges
 from disconnect_reconnect_chat import Chat
 from Dodge import dodge
 from Icons import change_profile_icon
 from Iconsclient import icon_client
 from InstalockAutoban import InstalockAutoban
+from RemoveFriends import remove_all_friends
 from Rengar import Rengar, check_league_client
 from RestartUX import restart
 from Reveal import reveal
@@ -76,6 +78,8 @@ class LeagueClientTool:
                 "autoban",
             ),
             11: MenuOption("Disconnect Chat", self.chat.toggle_chat, True, "chat"),
+            12: MenuOption("Remove All Friends", remove_all_friends),
+            13: MenuOption("Change Profile Badges", change_profile_badges),
             99: MenuOption("Exit", self._exit_program),
         }
 
