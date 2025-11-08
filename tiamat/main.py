@@ -1,27 +1,23 @@
-# Standard library imports
 import threading
 from os import system
 
-# Third-party imports
-from termcolor import colored
-
-# Local imports
-from Icons import change_profile_icon
-from Backgrounds import change_background
-from Reveal import reveal
 from AutoAccept import autoaccept
-from Dodge import dodge
-from Riotidchanger import change_riotid
-from Iconsclient import icon_client
-from RestartUX import restart
-from Rengar import check_league_client
-from InstalockAutoban import InstalockAutoban
+from Backgrounds import change_background
 from disconnect_reconnect_chat import Chat
+from Dodge import dodge
+from Icons import change_profile_icon
+from Iconsclient import icon_client
+from InstalockAutoban import InstalockAutoban
+from Rengar import Rengar, check_league_client
+from RestartUX import restart
+from Reveal import reveal
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from Riotidchanger import change_riotid
 
 
 class MenuOption:
-    """Representa uma opção do menu com seu título e função associada."""
-
     def __init__(self, title, action, show_state=False, feature_name=""):
         self.title = title
         self.action = action
@@ -30,22 +26,22 @@ class MenuOption:
 
 
 class LeagueClientTool:
-    """Classe principal que gerencia todas as funcionalidades do cliente."""
-
     ASCII_ART = """
     ▄▄▄█████▓ ██▓ ▄▄▄       ███▄ ▄███▓ ▄▄▄     ▄▄▄█████▓
     ▓  ██▒ ▓▒▓██▒▒████▄    ▓██▒▀█▀ ██▒▒████▄   ▓  ██▒ ▓▒
     ▒ ▓██░ ▒░▒██▒▒██  ▀█▄  ▓██    ▓██░▒██  ▀█▄ ▒ ▓██░ ▒░
-    ░ ▓██▓ ░ ░██░░██▄▄▄▄██ ▒██    ▒██ ░██▄▄▄▄██░ ▓██▓ ░ 
-      ▒██▒ ░ ░██░ ▓█   ▓██▒▒██▒   ░██▒ ▓█   ▓██▒ ▒██▒ ░ 
-      ▒ ░░   ░▓   ▒▒   ▓▒█░░ ▒░   ░  ░ ▒▒   ▓▒█░ ▒ ░░   
-        ░     ▒ ░  ▒   ▒▒ ░░  ░      ░  ▒   ▒▒ ░   ░    
-      ░       ▒ ░  ░   ▒   ░      ░     ░   ▒    ░      
-              ░        ░  ░       ░         ░  ░        
+    ░ ▓██▓ ░ ░██░░██▄▄▄▄██ ▒██    ▒██ ░██▄▄▄▄██░ ▓██▓ ░
+      ▒██▒ ░ ░██░ ▓█   ▓██▒▒██▒   ░██▒ ▓█   ▓██▒ ▒██▒ ░
+      ▒ ░░   ░▓   ▒▒   ▓▒█░░ ▒░   ░  ░ ▒▒   ▓▒█░ ▒ ░░
+        ░     ▒ ░  ▒   ▒▒ ░░  ░      ░  ▒   ▒▒ ░   ░
+      ░       ▒ ░  ░   ▒   ░      ░     ░   ▒    ░
+              ░        ░  ░       ░         ░  ░
     """
 
     def __init__(self):
-        print("Starting...")
+        self.console = Console()
+        self.console.print("[red]Starting...[/red]")
+        self.rengar = Rengar()
         self.auto_accept = autoaccept()
         self.instalock_autoban = InstalockAutoban()
         self.chat = Chat()
@@ -53,81 +49,160 @@ class LeagueClientTool:
         self._initialize_threads()
 
     def _initialize_menu_options(self):
-        """Inicializa as opções do menu."""
         self.menu_options = {
             1: MenuOption("Icon Changer", change_profile_icon),
             2: MenuOption("Client-Only Icon Changer", icon_client),
             3: MenuOption("Background Changer", change_background),
             4: MenuOption("Lobby Reveal", reveal),
-            5: MenuOption("Toggle Auto Accept", self.auto_accept.toggle_auto_accept, True, "auto_accept"),
+            5: MenuOption(
+                "Toggle Auto Accept",
+                self.auto_accept.toggle_auto_accept,
+                True,
+                "auto_accept",
+            ),
             6: MenuOption("Dodge", dodge),
             7: MenuOption("Riot ID Changer", change_riotid),
             8: MenuOption("Restart Client UX", restart),
-            9: MenuOption("Toggle Instalock", self.instalock_autoban.toggle_instalock, True, "instalock"),
-            10: MenuOption("Toggle AutoBan", self.instalock_autoban.toggle_auto_ban, True, "autoban"),
+            9: MenuOption(
+                "Toggle Instalock",
+                self.instalock_autoban.toggle_instalock,
+                True,
+                "instalock",
+            ),
+            10: MenuOption(
+                "Toggle AutoBan",
+                self.instalock_autoban.toggle_auto_ban,
+                True,
+                "autoban",
+            ),
             11: MenuOption("Disconnect Chat", self.chat.toggle_chat, True, "chat"),
-            99: MenuOption("Exit", self._exit_program)
+            99: MenuOption("Exit", self._exit_program),
         }
 
     def _initialize_threads(self):
-        """Inicializa as threads necessárias."""
-        threading.Thread(
-            target=self.auto_accept.monitor_queue,
-            daemon=True
-        ).start()
+        threading.Thread(target=self.auto_accept.monitor_queue, daemon=True).start()
 
         threading.Thread(
-            target=self.instalock_autoban.monitor_champ_select,
-            daemon=True
+            target=self.instalock_autoban.monitor_champ_select, daemon=True
         ).start()
+
+    def _get_summoner_info(self):
+        try:
+            summoner_resp = self.rengar.lcu_request(
+                "GET", "/lol-summoner/v1/current-summoner", ""
+            )
+            if summoner_resp.status_code == 200:
+                summoner = summoner_resp.json()
+                ign = f"{summoner.get('gameName', 'Unknown')}#{summoner.get('tagLine', 'Unknown')}"
+                level = summoner.get("summonerLevel", "Unknown")
+            else:
+                ign = "Unknown"
+                level = "Unknown"
+
+            region_resp = self.rengar.lcu_request(
+                "GET", "/riotclient/region-locale", ""
+            )
+            if region_resp.status_code == 200:
+                region_data = region_resp.json()
+                region = region_data.get("webRegion", "Unknown")
+            else:
+                region = "Unknown"
+
+            ranked_resp = self.rengar.lcu_request(
+                "GET", "/lol-ranked/v1/current-ranked-stats", ""
+            )
+            if ranked_resp.status_code == 200:
+                ranked_data = ranked_resp.json()
+                solo_queue = next(
+                    (
+                        q
+                        for q in ranked_data.get("queues", [])
+                        if q.get("queueType") == "RANKED_SOLO_5x5"
+                    ),
+                    None,
+                )
+                if solo_queue:
+                    tier = solo_queue.get("tier", "Unranked")
+                    division = solo_queue.get("division", "")
+                    lp = solo_queue.get("leaguePoints", 0)
+                    elo = (
+                        f"{tier} {division} {lp} LP"
+                        if tier != "Unranked"
+                        else "Unranked"
+                    )
+                else:
+                    elo = "Unranked"
+            else:
+                elo = "Unknown"
+
+        except Exception as e:
+            ign = "Error"
+            region = "Error"
+            level = "Error"
+            elo = "Error"
+
+        return ign, region, level, elo
 
     def _display_menu(self):
-        """Exibe o menu principal com estados atualizados."""
         system("cls")
-        print(colored(self.ASCII_ART, "magenta"))
-        print("\n")
+
+        ign, region, level, elo = self._get_summoner_info()
+        self.console.print(f"[red]{ign} level: {level}\n{region} elo: {elo}[/red]")
+        self.console.print("\n")
+
+        table = Table(
+            title="",
+            show_header=True,
+            header_style="bold red",
+            border_style="red",
+            box=None,
+        )
+
+        table.add_row("", f"[red]{self.ASCII_ART.strip()}[/red]")
 
         for key, option in self.menu_options.items():
-            menu_text = f"{key}. {option.title}"
+            menu_text = option.title
 
             if option.show_state:
-                if key == 9:  # Instalock
+                if key == 9:
                     state = "ON" if self.instalock_autoban.instalock_enabled else "OFF"
-                    menu_text += f" ({colored(state, 'yellow')}) - Champion: {colored(self.instalock_autoban.instalock_champion, 'cyan')}"
-                elif key == 10:  # AutoBan
+                    state_style = "green" if state == "ON" else "red"
+                    menu_text += f" ([{state_style}]{state}[/{state_style}]) - Champion: [cyan]{self.instalock_autoban.instalock_champion}[/cyan]"
+                elif key == 10:
                     state = "ON" if self.instalock_autoban.auto_ban_enabled else "OFF"
-                    menu_text += f" ({colored(state, 'yellow')}) - Champion: {colored(self.instalock_autoban.auto_ban_champion, 'cyan')}"
+                    state_style = "green" if state == "ON" else "red"
+                    menu_text += f" ([{state_style}]{state}[/{state_style}]) - Champion: [cyan]{self.instalock_autoban.auto_ban_champion}[/cyan]"
                 else:
                     state = self._get_feature_state(option.feature_name)
-                    menu_text += f" ({colored(state, 'yellow')})"
+                    state_style = "green" if state == "ON" else "red"
+                    menu_text += f" ([{state_style}]{state}[/{state_style}])"
 
-            print(menu_text)
+            table.add_row(str(key), menu_text)
 
-        return int(input("\n~-> "))
+        self.console.print(table)
+        return int(self.console.input("\n[red]~-> [/red]"))
 
     def _get_feature_state(self, feature_name):
-        """Retorna o estado atual de uma feature."""
         states = {
             "auto_accept": self.auto_accept.auto_accept_enabled,
-            "chat": self.chat.chat_state
+            "chat": self.chat.chat_state,
         }
         return "ON" if states.get(feature_name, False) else "OFF"
 
     def _handle_champion_selection(self, option):
-        """Gerencia a seleção de campeões para Instalock/AutoBan."""
-        champion_name = input("Enter the champion name (or 99 to disable): ")
+        champion_name = self.console.input(
+            "[white]Enter the champion name (or 99 to disable): [/white]"
+        )
         if option == 9:
             self.instalock_autoban.set_instalock_champion(champion_name)
         else:
             self.instalock_autoban.set_auto_ban_champion(champion_name)
 
     def _exit_program(self):
-        """Encerra o programa de forma limpa."""
         raise KeyboardInterrupt
 
     def run(self):
-        """Loop principal do programa."""
-        print("\nWaiting for league client.\n")
+        self.console.print("\n[red]Waiting for league client.[/red]\n")
         check_league_client()
 
         while True:
@@ -146,7 +221,7 @@ class LeagueClientTool:
             except KeyboardInterrupt:
                 self._exit_program()
             except Exception as e:
-                print(f"An error occurred: {str(e)}")
+                self.console.print(f"[red]An error occurred: {str(e)}[/red]")
                 continue
 
 
