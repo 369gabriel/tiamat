@@ -1,6 +1,11 @@
 import threading
 from os import system
 
+from rich.align import Align
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from AutoAccept import autoaccept
 from Backgrounds import change_background
 from Badges import change_profile_badges
@@ -13,9 +18,6 @@ from RemoveFriends import remove_all_friends
 from Rengar import Rengar, check_league_client
 from RestartUX import restart
 from Reveal import reveal
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
 from Riotidchanger import change_riotid
 
 
@@ -150,8 +152,9 @@ class LeagueClientTool:
     def _display_menu(self):
         system("cls")
 
-        ign, region, level, elo = self._get_summoner_info()
-        self.console.print(f"[red]{ign} level: {level}\n{region} elo: {elo}[/red]")
+        ascii_art_centered = Align.center(f"[red]{self.ASCII_ART.strip()}[/red]")
+        self.console.print("\n")
+        self.console.print(ascii_art_centered)
         self.console.print("\n")
 
         table = Table(
@@ -160,9 +163,8 @@ class LeagueClientTool:
             header_style="bold red",
             border_style="red",
             box=None,
+            padding=(0, 2),
         )
-
-        table.add_row("", f"[red]{self.ASCII_ART.strip()}[/red]")
 
         for key, option in self.menu_options.items():
             menu_text = option.title
@@ -183,7 +185,9 @@ class LeagueClientTool:
 
             table.add_row(str(key), menu_text)
 
-        self.console.print(table)
+        centered_table = Align.center(table)
+        self.console.print(centered_table)
+
         return int(self.console.input("\n[red]~-> [/red]"))
 
     def _get_feature_state(self, feature_name):
