@@ -19,6 +19,7 @@ from Rengar import Rengar, check_league_client
 from RestartUX import restart
 from Reveal import reveal
 from Riotidchanger import change_riotid
+from StatusChanger import change_status
 
 
 class MenuOption:
@@ -82,6 +83,7 @@ class LeagueClientTool:
             11: MenuOption("Disconnect Chat", self.chat.toggle_chat, True, "chat"),
             12: MenuOption("Remove All Friends", remove_all_friends),
             13: MenuOption("Change Profile Badges", change_profile_badges),
+            14: MenuOption("Change Status", change_status),
             99: MenuOption("Exit", self._exit_program),
         }
 
