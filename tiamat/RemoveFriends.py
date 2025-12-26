@@ -24,7 +24,6 @@ def remove_all_friends():
 
             for friend in friends:
                 friend_id = friend.get("pid")
-                friend_name = friend.get("name", "Unknown")
 
                 try:
                     delete_response = rengar.lcu_request(
@@ -33,14 +32,11 @@ def remove_all_friends():
 
                     if delete_response.status_code in [200, 204]:
                         removed_count += 1
-                        print(colored(f"Removed: {friend_name}", "green"))
                     else:
                         failed_count += 1
-                        print(colored(f"Failed to remove: {friend_name}", "red"))
 
                 except Exception as e:
                     failed_count += 1
-                    print(colored(f"Error removing {friend_name}: {str(e)}", "red"))
 
             print(colored(f"\nRemoved {removed_count} friend(s)", "green"))
             if failed_count > 0:
