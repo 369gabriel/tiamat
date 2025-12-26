@@ -1,13 +1,15 @@
-from Rengar import Rengar
+from time import sleep
+
 from termcolor import colored
+
+from Rengar import Rengar
 
 rengar = Rengar()
 
 
 def remove_all_friends():
     try:
-        # Fetch all friends
-        response = rengar.lcu_request("GET", "/lol-friends/v1/friends", "")
+        response = rengar.lcu_request("GET", "/lol-chat/v1/friends", "")
 
         if response.status_code == 200:
             friends = response.json()
@@ -21,12 +23,12 @@ def remove_all_friends():
             failed_count = 0
 
             for friend in friends:
-                friend_id = friend.get("summonerId")
+                friend_id = friend.get("pid")
                 friend_name = friend.get("name", "Unknown")
 
                 try:
                     delete_response = rengar.lcu_request(
-                        "DELETE", f"/lol-friends/v1/friends/{friend_id}", ""
+                        "DELETE", f"/lol-chat/v1/friends/{friend_id}", ""
                     )
 
                     if delete_response.status_code in [200, 204]:
@@ -44,7 +46,7 @@ def remove_all_friends():
             if failed_count > 0:
                 print(colored(f"Failed to remove {failed_count} friend(s)", "red"))
 
-            input("\nPress Enter.")
+            sleep(1)
 
         else:
             print(
@@ -53,7 +55,6 @@ def remove_all_friends():
                     "red",
                 )
             )
-            input("\nPress Enter.")
 
     except Exception as e:
         print(colored(f"Error: {str(e)}", "red"))
