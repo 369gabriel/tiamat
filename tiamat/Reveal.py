@@ -39,7 +39,6 @@ def reveal():
                         )
                         summ_names.append(summ_name)
 
-            # Verifica se o lobby é ranqueado
             if is_ranked:
                 summ_names = []
                 participants = rengar.riot_request("GET", "/chat/v5/participants", "")
