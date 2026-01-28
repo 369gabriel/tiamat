@@ -29,6 +29,10 @@ Use at your own risk, as some features might violate Riot Games' Terms of Servic
 
 ## 🚀 Installation
 
+### Releases
+
+You can find the most recent release [here](https://github.com/369gabriel/tiamat/releases).
+
 ### Prerequisites
 - Python 3.8 or higher
 - League of Legends client installed
@@ -54,9 +58,6 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
-## Download
-
-You can find the most recent release [here](https://github.com/369gabriel/tiamat/releases).
 
 ## 💡 Usage
 
