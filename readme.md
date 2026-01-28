@@ -54,6 +54,9 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
+## Download
+
+You can find the most recent release [here](https://github.com/369gabriel/tiamat/releases).
 
 ## 💡 Usage
 
