@@ -1,10 +1,10 @@
 from termcolor import colored
 
-from Rengar import Rengar
+from Rengar import get_shared_rengar
 
 
 def change_status():
-    api = Rengar()
+    api = get_shared_rengar()
 
     print(
         colored("Paste your status below. Type 'OK!' on a new line when finished:\n", "magenta")

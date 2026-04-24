@@ -1,7 +1,5 @@
-from Rengar import Rengar
+from Rengar import get_shared_rengar
 
-rengar = Rengar()
 
 def restart():
-
-	rengar.lcu_request("POST", '/riotclient/kill-and-restart-ux','')
+    get_shared_rengar().lcu_request("POST", "/riotclient/kill-and-restart-ux", "")

@@ -1,13 +1,12 @@
 from time import sleep
 
+from Rengar import get_shared_rengar
 from termcolor import colored
-
-from Rengar import Rengar
-
-rengar = Rengar()
 
 
 def remove_all_friends():
+    rengar = get_shared_rengar()
+
     try:
         response = rengar.lcu_request("GET", "/lol-chat/v1/friends", "")
 
@@ -35,7 +34,7 @@ def remove_all_friends():
                     else:
                         failed_count += 1
 
-                except Exception as e:
+                except Exception:
                     failed_count += 1
 
             print(colored(f"\nRemoved {removed_count} friend(s)", "green"))
@@ -51,7 +50,6 @@ def remove_all_friends():
                     "red",
                 )
             )
-
     except Exception as e:
         print(colored(f"Error: {str(e)}", "red"))
         input("\nPress Enter.")

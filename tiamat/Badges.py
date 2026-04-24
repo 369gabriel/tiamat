@@ -1,26 +1,21 @@
 import time
 
-from Rengar import Rengar
+from Rengar import get_shared_rengar
 from termcolor import colored
-
-# Instanciar Rengar no nível do módulo
-rengar = Rengar()
 
 
 def _get_player_data():
     try:
-        resp = rengar.lcu_request(
+        resp = get_shared_rengar().lcu_request(
             "GET", "/lol-challenges/v1/summary-player-data/local-player", ""
         )
         if resp.status_code == 200:
             return resp.json()
-        else:
-            print(
-                colored(
-                    f"Error getting player data. Status code: {resp.status_code}", "red"
-                )
-            )
-            return None
+
+        print(
+            colored(f"Error getting player data. Status code: {resp.status_code}", "red")
+        )
+        return None
     except Exception as e:
         print(colored(f"An exception occurred while getting player data: {e}", "red"))
         return None
@@ -28,11 +23,11 @@ def _get_player_data():
 
 def _update_player_preferences(payload):
     try:
-        update = rengar.lcu_request(
+        update = get_shared_rengar().lcu_request(
             "POST", "/lol-challenges/v1/update-player-preferences/", payload
         )
         if update.status_code in (200, 201, 204):
-            print(colored("✓ Badges updated successfully.", "green"))
+            print(colored("Badges updated successfully.", "green"))
         else:
             print(
                 colored(
@@ -50,12 +45,10 @@ def change_profile_badges():
         time.sleep(0.5)
         return
 
-    # Extrair dados necessários do jogador
     title_id = data.get("title", {}).get("itemId", -1)
     banner_id = data.get("bannerId", "")
     top_challenges = data.get("topChallenges", [])
 
-    # Criar e exibir um menu simples
     print(colored("1. Empty badges", "magenta"))
     print(colored("2. Copy first badge to all", "magenta"))
     print(colored("3. Set all to a glitched ID (0-5)", "magenta"))
@@ -104,7 +97,6 @@ def change_profile_badges():
         time.sleep(0.5)
         return
 
-    # Montar e enviar o payload
     payload = {"challengeIds": new_ids}
     if title_id != -1:
         payload["title"] = str(title_id)

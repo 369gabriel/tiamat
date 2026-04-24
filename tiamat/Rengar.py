@@ -1,96 +1,141 @@
-#importando as bibliotecas necessárias do programa
+import base64
+import threading
+from time import sleep
 
 import psutil
 import requests
-import base64
-import json
 import urllib3
-from time import sleep
 
-urllib3.disable_warnings()
+REQUEST_TIMEOUT = 3
+PROCESS_SCAN_SLEEP = 0.5
+LEAGUE_CLIENT_PROCESS = "LeagueClientUx.exe"
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+_shared_rengar = None
+_shared_rengar_lock = threading.Lock()
+
+
+def _iter_league_client_cmdlines():
+    for proc in psutil.process_iter(["name", "cmdline"]):
+        try:
+            name = proc.info.get("name") or ""
+            cmdline = proc.info.get("cmdline") or []
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+
+        if name != LEAGUE_CLIENT_PROCESS:
+            continue
+
+        yield cmdline
+
+
+def _extract_argument(cmdline, prefix):
+    for arg in cmdline:
+        if arg.startswith(prefix):
+            return arg.split("=", 1)[1]
+    return None
 
 
 def find_league_client_credentials():
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        if proc.info['name'] == 'LeagueClientUx.exe':
-            cmdline = proc.info['cmdline']
-            port = None
-            token = None
-            for arg in cmdline:
-                if arg.startswith('--app-port='):
-                    port = arg.split('=')[1]
-                elif arg.startswith('--remoting-auth-token='):
-                    token = arg.split('=')[1]
-            if port and token:
-                return port, token
+    for cmdline in _iter_league_client_cmdlines():
+        port = _extract_argument(cmdline, "--app-port=")
+        token = _extract_argument(cmdline, "--remoting-auth-token=")
+        if port and token:
+            return port, token
     return None, None
+
 
 def check_league_client():
     while True:
         port_check, token_check = find_league_client_credentials()
-        if port_check == None and token_check == None:
-            sleep(0.5)
-        else:
-            return port_check, token_check
+        if port_check is None and token_check is None:
+            sleep(PROCESS_SCAN_SLEEP)
+            continue
+        return port_check, token_check
 
 
 def find_riot_client_credentials():
-    port = None
-    token = None
-    for process in psutil.process_iter(attrs=['pid', 'name', 'cmdline']):
-        if 'LeagueClientUx' in process.info['name']:
-            for arg in process.info['cmdline']:
-                if '--riotclient-auth-token=' in arg:
-                    token = arg.split('=')[1]
-                if '--riotclient-app-port=' in arg:
-                    port = arg.split('=')[1]
-            if token and port:
-                break
-    return port, token
+    for cmdline in _iter_league_client_cmdlines():
+        port = _extract_argument(cmdline, "--riotclient-app-port=")
+        token = _extract_argument(cmdline, "--riotclient-auth-token=")
+        if port and token:
+            return port, token
+    return None, None
 
 
-def return_lcu_url(leaguePort):
-    url = f'https://127.0.0.1:{str(leaguePort)}'
-    return str(url)
+def return_lcu_url(league_port):
+    return f"https://127.0.0.1:{league_port}"
 
 
-def return_riot_url(riotPort):
-    url = f'https://127.0.0.1:{riotPort}'
-    return url
+def return_riot_url(riot_port):
+    return f"https://127.0.0.1:{riot_port}"
 
 
-def return_riot_headers(riotToken):
-    auth = base64.b64encode(f'riot:{riotToken}'.encode('utf-8')).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth}',
-        'Content-Type': 'application/json'
-    }
-    return headers
+def return_riot_headers(riot_token):
+    auth = base64.b64encode(f"riot:{riot_token}".encode("utf-8")).decode("utf-8")
+    return {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
 
 
-def return_lcu_headers(leagueToken):
-    auth = base64.b64encode(f'riot:{leagueToken}'.encode('utf-8')).decode('utf-8')
-    headers = {
-        'Authorization': f'Basic {auth}',
-        'Content-Type': 'application/json'
-    }
-    return headers
+def return_lcu_headers(league_token):
+    auth = base64.b64encode(f"riot:{league_token}".encode("utf-8")).decode(
+        "utf-8"
+    )
+    return {"Authorization": f"Basic {auth}", "Content-Type": "application/json"}
+
+
+def get_shared_rengar():
+    global _shared_rengar
+
+    with _shared_rengar_lock:
+        if _shared_rengar is None:
+            _shared_rengar = Rengar()
+        return _shared_rengar
 
 
 class Rengar:
+    _credentials_lock = threading.Lock()
+    _league_credentials = None
+    _riot_credentials = None
+
     def __init__(self):
+        self.league_session = requests.Session()
+        self.riot_session = requests.Session()
+        self.leaguePort = None
+        self.leagueToken = None
+        self.leagueUrl = None
+        self.leagueHeaders = None
+        self.riotPort = None
+        self.riotToken = None
+        self.riotUrl = None
+        self.riotHeaders = None
         self.update_league_credentials()
         self.update_riot_credentials()
 
-    def update_league_credentials(self):
-        self.leaguePort, self.leagueToken = find_league_client_credentials()
+    def update_league_credentials(self, force=False):
+        with self._credentials_lock:
+            if force or self.__class__._league_credentials is None:
+                port, token = find_league_client_credentials()
+                if port is None or token is None:
+                    port, token = check_league_client()
+                self.__class__._league_credentials = (port, token)
+
+            self.leaguePort, self.leagueToken = self.__class__._league_credentials
+
         self.leagueUrl = return_lcu_url(self.leaguePort)
         self.leagueHeaders = return_lcu_headers(self.leagueToken)
 
+    def update_riot_credentials(self, force=False):
+        with self._credentials_lock:
+            if force or self.__class__._riot_credentials is None:
+                port, token = find_riot_client_credentials()
+                while port is None or token is None:
+                    check_league_client()
+                    port, token = find_riot_client_credentials()
+                self.__class__._riot_credentials = (port, token)
 
+            self.riotPort, self.riotToken = self.__class__._riot_credentials
 
-    def update_riot_credentials(self):
-        self.riotPort, self.riotToken = find_riot_client_credentials()
         self.riotUrl = return_riot_url(self.riotPort)
         self.riotHeaders = return_riot_headers(self.riotToken)
 
@@ -100,60 +145,47 @@ class Rengar:
     def return_riot_creds(self):
         return self.riotPort, self.riotToken, self.riotUrl
 
-    def lcu_request(self, method, endpoint, body: dict):
-        method = method.upper()
-        url = f'{self.leagueUrl}{endpoint}'
-        if body == "":
-            body = None
-        elif body is not None:
-            body = json.dumps(body)
+    def _request(self, session, updater, url, headers, method, endpoint, body):
+        payload = None if body in ("", None) else body
+        last_error = None
 
-        try:
-            if method == "GET":
-                req = requests.get(url, headers=self.leagueHeaders, data=body, verify=False)
-            elif method == "POST":
-                req = requests.post(url, headers=self.leagueHeaders, data=body, verify=False)
-            elif method == "PUT":
-                req = requests.put(url, headers=self.leagueHeaders, data=body, verify=False)
-            elif method == "DELETE":
-                req = requests.delete(url, headers=self.leagueHeaders, data=body, verify=False)
-            elif method == "PATCH":
-                req = requests.patch(url, headers=self.leagueHeaders, data=body, verify=False)
-            else:
-                raise ValueError('Invalid method')
+        for attempt in range(2):
+            if attempt:
+                updater(force=True)
 
-            return req
-        except requests.exceptions.RequestException as e:
-            check_league_client()
-            self.update_league_credentials()
-            req = self.lcu_request(method, endpoint, body)
-            return req
+            try:
+                return session.request(
+                    method=method.upper(),
+                    url=f"{getattr(self, url)}{endpoint}",
+                    headers=getattr(self, headers),
+                    json=payload,
+                    verify=False,
+                    timeout=REQUEST_TIMEOUT,
+                )
+            except requests.exceptions.RequestException as exc:
+                last_error = exc
+                check_league_client()
 
-    def riot_request(self, method, endpoint, body: dict):
-        method = method.upper()
-        url = f'{self.riotUrl}{endpoint}'
-        if body == "":
-            body = None
-        
-        if body is not None:
-            body = json.dumps(body)
+        raise last_error
 
-        try:
-            if method == "GET":
-                req = requests.get(url, headers=self.riotHeaders, data=body, verify=False)
-            elif method == "POST":
-                req = requests.post(url, headers=self.riotHeaders, data=body, verify=False)
-            elif method == "PUT":
-                req = requests.put(url, headers=self.riotHeaders, data=body, verify=False)
-            elif method == "DELETE":
-                req = requests.delete(url, headers=self.riotHeaders, data=body, verify=False)
-            elif method == "PATCH":
-                req = requests.patch(url, headers=self.riotHeaders, data=body, verify=False)
-            else:
-                raise ValueError('Invalid method')
+    def lcu_request(self, method, endpoint, body):
+        return self._request(
+            session=self.league_session,
+            updater=self.update_league_credentials,
+            url="leagueUrl",
+            headers="leagueHeaders",
+            method=method,
+            endpoint=endpoint,
+            body=body,
+        )
 
-            return req
-        except requests.exceptions.RequestException as e:
-            check_league_client()
-            self.update_riot_credentials()
-            return self.riot_request(method, endpoint, body)
+    def riot_request(self, method, endpoint, body):
+        return self._request(
+            session=self.riot_session,
+            updater=self.update_riot_credentials,
+            url="riotUrl",
+            headers="riotHeaders",
+            method=method,
+            endpoint=endpoint,
+            body=body,
+        )

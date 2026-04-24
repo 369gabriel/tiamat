@@ -1,10 +1,9 @@
-import json
 from termcolor import colored
-from Rengar import Rengar
+
+from Rengar import get_shared_rengar
+
 
 def change_profile_icon():
-    rengar = Rengar()
-
     icon_id = input(colored("Type the icon ID (1 - 500): \n", "magenta"))
 
     try:
@@ -16,8 +15,10 @@ def change_profile_icon():
     body = {"profileIconId": icon_id}
 
     try:
-        response = rengar.lcu_request("PUT", "/lol-summoner/v1/current-summoner/icon", body)
-        if response.status_code == 201 or response.status_code == 200:
+        response = get_shared_rengar().lcu_request(
+            "PUT", "/lol-summoner/v1/current-summoner/icon", body
+        )
+        if response.status_code in (200, 201):
             print(colored(f"Icon sucessfully changed to {icon_id}", "green"))
         else:
             print(f"Error: {response.status_code}")
@@ -28,6 +29,5 @@ def change_profile_icon():
         input("\nPress Enter.")
 
 
-
 if __name__ == "__main__":
-	change_profile_icon()
+    change_profile_icon()
