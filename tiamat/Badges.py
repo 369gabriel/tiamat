@@ -3,11 +3,7 @@ import time
 from Rengar import Rengar
 from termcolor import colored
 
-# Instanciar Rengar no nível do módulo
-rengar = Rengar()
-
-
-def _get_player_data():
+def _get_player_data(rengar):
     try:
         resp = rengar.lcu_request(
             "GET", "/lol-challenges/v1/summary-player-data/local-player", ""
@@ -26,7 +22,7 @@ def _get_player_data():
         return None
 
 
-def _update_player_preferences(payload):
+def _update_player_preferences(rengar, payload):
     try:
         update = rengar.lcu_request(
             "POST", "/lol-challenges/v1/update-player-preferences/", payload
@@ -45,7 +41,8 @@ def _update_player_preferences(payload):
 
 
 def change_profile_badges():
-    data = _get_player_data()
+    rengar = Rengar()
+    data = _get_player_data(rengar)
     if not data:
         time.sleep(0.5)
         return
@@ -111,7 +108,7 @@ def change_profile_badges():
     if banner_id:
         payload["bannerAccent"] = banner_id
 
-    _update_player_preferences(payload)
+    _update_player_preferences(rengar, payload)
     time.sleep(0.5)
 
 

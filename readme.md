@@ -34,7 +34,7 @@ Use at your own risk, as some features might violate Riot Games' Terms of Servic
 You can find the most recent release [here](https://github.com/369gabriel/tiamat/releases).
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.10 or higher
 - League of Legends client installed
 - Git (for cloning the repository)
 
@@ -51,12 +51,17 @@ cd tiamat
 
 3. Install required dependencies:
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 4. Run the application:
 ```bash
-python main.py
+uv run python tiamat/main.py
+```
+
+Run tests with:
+```bash
+uv run pytest
 ```
 
 ## 💡 Usage

@@ -1,10 +1,8 @@
 from Rengar import Rengar
-import json
-
-rengar = Rengar()
 
 
 def change_riotid():
+	rengar = Rengar()
 	name = input("Type the new name\n")
 	tag = input("Type the new tag\n")
 
