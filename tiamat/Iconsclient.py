@@ -1,4 +1,3 @@
-import json
 from termcolor import colored
 from Rengar import Rengar  # Certifique-se de que o Rengar.py está no mesmo diretório
 

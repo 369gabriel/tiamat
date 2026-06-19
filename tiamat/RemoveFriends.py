@@ -4,10 +4,9 @@ from termcolor import colored
 
 from Rengar import Rengar
 
-rengar = Rengar()
-
 
 def remove_all_friends():
+    rengar = Rengar()
     try:
         response = rengar.lcu_request("GET", "/lol-chat/v1/friends", "")
 

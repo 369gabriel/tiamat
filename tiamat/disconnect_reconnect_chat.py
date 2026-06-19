@@ -1,14 +1,13 @@
 from Rengar import Rengar
 
-rengar = Rengar()
-
 
 class Chat:
     def __init__(self):
+        self.rengar = Rengar()
         self.chat_state = self.return_disconnect()
 
     def return_disconnect(self):
-        req = rengar.riot_request("GET", "/chat/v1/session", "")
+        req = self.rengar.riot_request("GET", "/chat/v1/session", "")
         req_data = req.json()
         if req_data["state"] == "disconnected":
             return True
@@ -17,11 +16,11 @@ class Chat:
 
     def disconnect(self):
         body = {"config": "disable"}
-        response = rengar.riot_request("POST", "/chat/v1/suspend", body)
+        response = self.rengar.riot_request("POST", "/chat/v1/suspend", body)
         print(response.text)  # Troquei `input` por `print` para exibir a resposta
 
     def reconnect(self):
-        response = rengar.riot_request("POST", "/chat/v1/resume", "")
+        self.rengar.riot_request("POST", "/chat/v1/resume", "")
 
     def toggle_chat(self):
         self.chat_state = not self.chat_state

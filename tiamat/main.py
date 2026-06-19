@@ -1,12 +1,10 @@
 import threading
-from os import system
 
 from rich.align import Align
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
-from AutoAccept import autoaccept
+from AutoAccept import AutoAccept
 from Backgrounds import change_background
 from Badges import change_profile_badges
 from disconnect_reconnect_chat import Chat
@@ -46,8 +44,10 @@ class LeagueClientTool:
     def __init__(self):
         self.console = Console()
         self.console.print("[red]Starting...[/red]")
+        self.console.print("\n[red]Waiting for league client.[/red]\n")
+        check_league_client()
         self.rengar = Rengar()
-        self.auto_accept = autoaccept()
+        self.auto_accept = AutoAccept()
         self.instalock_autoban = InstalockAutoban()
         self.chat = Chat()
         self._initialize_menu_options()
@@ -143,7 +143,7 @@ class LeagueClientTool:
             else:
                 elo = "Unknown"
 
-        except Exception as e:
+        except Exception:
             ign = "Error"
             region = "Error"
             level = "Error"
@@ -152,7 +152,7 @@ class LeagueClientTool:
         return ign, region, level, elo
 
     def _display_menu(self):
-        system("cls")
+        self.console.clear()
 
         ascii_art_centered = Align.center(f"[red]{self.ASCII_ART.strip()}[/red]")
         self.console.print("\n")
@@ -212,9 +212,6 @@ class LeagueClientTool:
         raise KeyboardInterrupt
 
     def run(self):
-        self.console.print("\n[red]Waiting for league client.[/red]\n")
-        check_league_client()
-
         while True:
             try:
                 check_league_client()

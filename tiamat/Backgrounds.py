@@ -1,10 +1,6 @@
 import requests
-import json
 from Rengar import Rengar
 from termcolor import colored
-
-# Inicializando o Rengar para interagir com a LCU API
-rengar = Rengar()
 
 class Champ:
     def __init__(self, name="", key=0):
@@ -15,7 +11,7 @@ class Champ:
 # Função para buscar as skins de todos os campeões da Community Dragon
 def fetch_all_champion_skins():
     url = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/skins.json"
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
     
     if response.status_code != 200:
         print("Error while searching skins.")
@@ -75,6 +71,7 @@ def search_skins_by_name(champions, search_query):
 
 # Função para alterar o plano de fundo do perfil
 def change_profile_background(skin_id):
+    rengar = Rengar()
     body = {
         "key": "backgroundSkinId",
         "value": int(skin_id)  # Certificando que o valor é um inteiro
@@ -128,4 +125,4 @@ def change_background():
         input("\nPress Enter.")
 
 if __name__ == "__main__":
-    main()
+    change_background()
