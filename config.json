@@ -1,0 +1,13 @@
+{
+    "instalock": {
+        "enabled": false,
+        "champion": "Random"
+    },
+    "autoban": {
+        "enabled": false,
+        "champion": "None"
+    },
+    "auto_accept": {
+        "enabled": false
+    }
+}

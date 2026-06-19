@@ -1,14 +1,18 @@
 import time
+from Config import load_config, save_config
 from Rengar import Rengar
 
 
 class AutoAccept:
-    def __init__(self):
-        self.auto_accept_enabled = False
+    def __init__(self, config=None):
+        self.config = config if config is not None else load_config()
+        self.auto_accept_enabled = bool(self.config["auto_accept"].get("enabled"))
         self.rengar = Rengar()
 
     def toggle_auto_accept(self):
         self.auto_accept_enabled = not self.auto_accept_enabled
+        self.config["auto_accept"]["enabled"] = self.auto_accept_enabled
+        save_config(self.config)
         state = "ON" if self.auto_accept_enabled else "OFF"
         print(f"Auto accept is now {state}.")
 

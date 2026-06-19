@@ -1,16 +1,25 @@
 import time
 import random
+from Config import load_config, save_config
 from Rengar import Rengar
 
 
 class InstalockAutoban:
-    def __init__(self):
+    def __init__(self, config=None):
+        self.config = config if config is not None else load_config()
         self.champ_dict = {}
-        self.instalock_enabled = False
-        self.instalock_champion = "Random"
-        self.auto_ban_enabled = False
-        self.auto_ban_champion = "None"
+        self.instalock_enabled = bool(self.config["instalock"].get("enabled"))
+        self.instalock_champion = self.config["instalock"].get("champion", "Random")
+        self.auto_ban_enabled = bool(self.config["autoban"].get("enabled"))
+        self.auto_ban_champion = self.config["autoban"].get("champion", "None")
         self.rengar = Rengar()
+
+    def save_settings(self):
+        self.config["instalock"]["enabled"] = self.instalock_enabled
+        self.config["instalock"]["champion"] = self.instalock_champion
+        self.config["autoban"]["enabled"] = self.auto_ban_enabled
+        self.config["autoban"]["champion"] = self.auto_ban_champion
+        save_config(self.config)
 
     def update_champion_list(self):
         response = self.rengar.lcu_request("GET", "/lol-champ-select/v1/all-grid-champions", "")
@@ -31,6 +40,7 @@ class InstalockAutoban:
         if champion_name == "99":
             self.instalock_enabled = False
             self.instalock_champion = "None"
+            self.save_settings()
         else:
             if not self.champ_dict:
                 self.update_champion_list()
@@ -40,11 +50,13 @@ class InstalockAutoban:
             else:
                 self.instalock_champion = champion_name
                 self.instalock_enabled = True
+                self.save_settings()
 
     def set_auto_ban_champion(self, champion_name):
         if champion_name == "99":
             self.auto_ban_enabled = False
             self.auto_ban_champion = "None"
+            self.save_settings()
         else:
             if not self.champ_dict:
                 self.update_champion_list()
@@ -54,6 +66,7 @@ class InstalockAutoban:
             else:
                 self.auto_ban_champion = champion_name
                 self.auto_ban_enabled = True
+                self.save_settings()
 
     def monitor_champ_select(self):
         while True:
@@ -121,6 +134,8 @@ class InstalockAutoban:
 
     def toggle_instalock(self):
         self.instalock_enabled = not self.instalock_enabled
+        self.save_settings()
 
     def toggle_auto_ban(self):
         self.auto_ban_enabled = not self.auto_ban_enabled
+        self.save_settings()

@@ -7,6 +7,7 @@ from rich.table import Table
 from AutoAccept import AutoAccept
 from Backgrounds import change_background
 from Badges import change_profile_badges
+from Config import load_config
 from disconnect_reconnect_chat import Chat
 from Dodge import dodge
 from Icons import change_profile_icon
@@ -18,6 +19,7 @@ from RestartUX import restart
 from Reveal import reveal
 from Riotidchanger import change_riotid
 from StatusChanger import change_status
+
 
 
 class MenuOption:
@@ -46,9 +48,10 @@ class LeagueClientTool:
         self.console.print("[red]Starting...[/red]")
         self.console.print("\n[red]Waiting for league client.[/red]\n")
         check_league_client()
+        self.config = load_config()
         self.rengar = Rengar()
-        self.auto_accept = AutoAccept()
-        self.instalock_autoban = InstalockAutoban()
+        self.auto_accept = AutoAccept(self.config)
+        self.instalock_autoban = InstalockAutoban(self.config)
         self.chat = Chat()
         self._initialize_menu_options()
         self._initialize_threads()
