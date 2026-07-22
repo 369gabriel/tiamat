@@ -1,0 +1,283 @@
+$background: #0b0b0e;
+$surface: #121217;
+$elevated: #19191f;
+$border: #2a2a32;
+$text: #e7e7ea;
+$muted: #8b8b96;
+$accent: #d14b4b;
+$success: #70a87b;
+$warning: #c9a45c;
+$info: #7296b8;
+
+Screen {
+    background: $background;
+    color: $text;
+}
+
+#header {
+    height: 3;
+    padding: 1 2 0 2;
+    border-bottom: solid $border;
+}
+
+#brand {
+    width: 1fr;
+    color: $accent;
+    text-style: bold;
+}
+
+#connection {
+    width: auto;
+    color: $muted;
+    text-align: right;
+}
+
+#connection.connected {
+    color: $success;
+}
+
+#workspace {
+    height: 1fr;
+    min-height: 12;
+}
+
+#module-panel {
+    width: 46;
+    min-width: 34;
+    border-right: solid $border;
+    padding: 1 1 0 2;
+}
+
+.panel-heading {
+    height: 2;
+    color: $muted;
+    text-style: bold;
+}
+
+#feature-list {
+    height: 1fr;
+    background: transparent;
+    border: none;
+    scrollbar-color: $border;
+    scrollbar-background: transparent;
+}
+
+.category-item {
+    height: 2;
+    padding: 1 1 0 1;
+    background: transparent;
+    color: $muted;
+}
+
+.category-label {
+    text-style: bold;
+}
+
+.feature-item {
+    height: 2;
+    padding: 0 1;
+    background: transparent;
+}
+
+.feature-item.-hovered {
+    background: $surface;
+}
+
+.feature-item.-highlight {
+    background: $elevated;
+    color: $text;
+    border-left: thick $accent;
+    padding-left: 0;
+}
+
+.feature-name {
+    width: 1fr;
+}
+
+.feature-state {
+    width: auto;
+    color: $muted;
+    text-align: right;
+}
+
+.feature-state.state-active {
+    color: $success;
+}
+
+#detail-panel {
+    width: 1fr;
+    padding: 2 4;
+}
+
+#detail-title {
+    height: 2;
+    text-style: bold;
+}
+
+#detail-description {
+    height: auto;
+    max-width: 70;
+    color: $muted;
+    margin-bottom: 2;
+}
+
+#detail-meta {
+    height: auto;
+    color: $text;
+    margin-bottom: 2;
+}
+
+#detail-actions {
+    height: auto;
+    color: $info;
+}
+
+#activity-panel {
+    height: 8;
+    border-top: solid $border;
+    padding: 1 2 0 2;
+}
+
+#activity-log {
+    height: 1fr;
+    background: transparent;
+    scrollbar-color: $border;
+    scrollbar-background: transparent;
+}
+
+#shortcut-bar {
+    display: none;
+    height: 1;
+    padding: 0 2;
+    background: $elevated;
+    color: $text;
+}
+
+.entering-shortcut #shortcut-bar {
+    display: block;
+}
+
+#keybar {
+    height: 2;
+    padding: 0 2;
+    background: $surface;
+    color: $muted;
+}
+
+DialogScreen {
+    align: center middle;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.dialog {
+    width: 58;
+    height: auto;
+    max-width: 94%;
+    max-height: 92%;
+    padding: 0 1;
+    background: $surface;
+    border: solid $border;
+    overflow-y: auto;
+}
+
+.dialog-title {
+    height: 1;
+    text-style: bold;
+}
+
+.dialog-copy {
+    height: auto;
+    color: $muted;
+}
+
+.field-label {
+    height: 1;
+    color: $muted;
+}
+
+.dialog Input,
+.dialog Select,
+.dialog TextArea,
+.dialog OptionList {
+    background: $background;
+    color: $text;
+    border: solid $border;
+}
+
+.dialog Input > .input--cursor {
+    background: #e7e7ea;
+    color: #0b0b0e;
+}
+
+.dialog Input > .input--placeholder,
+.dialog Input > .input--suggestion {
+    color: #8b8b96;
+}
+
+.dialog Input:focus,
+.dialog Select:focus,
+.dialog TextArea:focus,
+.dialog OptionList:focus {
+    border: solid $accent;
+}
+
+.dialog-actions {
+    height: 1;
+    align-horizontal: right;
+}
+
+.dialog-actions Button {
+    margin-left: 1;
+    min-width: 12;
+}
+
+.dialog-actions Button:focus {
+    text-style: bold underline;
+}
+
+.form-error {
+    height: 1;
+    color: $accent;
+}
+
+.confirm-dialog {
+    width: 58;
+}
+
+.status-dialog {
+    height: 24;
+}
+
+.status-dialog TextArea {
+    height: 1fr;
+}
+
+.search-dialog {
+    height: 30;
+}
+
+.search-dialog OptionList {
+    height: 1fr;
+    margin-top: 1;
+}
+
+.aram-selected .position-field {
+    display: none;
+}
+
+.compact #module-panel {
+    width: 100%;
+    border-right: none;
+}
+
+.compact #detail-panel {
+    display: none;
+}
+
+.compact #activity-panel {
+    height: 6;
+}
+
+.compact .dialog {
+    width: 92%;
+}

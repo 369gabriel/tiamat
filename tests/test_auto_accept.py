@@ -11,6 +11,10 @@ class FakeResponse:
         return {"searchState": "Found"}
 
 
+class FailedResponse:
+    status_code = 500
+
+
 class StopMonitor(Exception):
     pass
 
@@ -44,3 +48,11 @@ def test_monitor_queue_continues_after_lcu_error(monkeypatch):
         ("GET", "/lol-lobby/v2/lobby/matchmaking/search-state", ""),
         ("POST", "/lol-matchmaking/v1/ready-check/accept", ""),
     ]
+
+
+def test_accept_match_rejects_failed_response():
+    auto_accept = AutoAccept({"auto_accept": {"enabled": True}})
+    auto_accept.rengar.lcu_request = lambda _method, _endpoint, _body: FailedResponse()
+
+    with pytest.raises(RuntimeError, match="HTTP 500"):
+        auto_accept.accept_match()

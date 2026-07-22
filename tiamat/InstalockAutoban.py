@@ -5,7 +5,7 @@ from Rengar import Rengar
 
 
 class InstalockAutoban:
-    def __init__(self, config=None):
+    def __init__(self, config=None, on_event=None):
         self.config = config if config is not None else load_config()
         self.champ_dict = {}
         self.instalock_enabled = bool(self.config["instalock"].get("enabled"))
@@ -13,6 +13,8 @@ class InstalockAutoban:
         self.auto_ban_enabled = bool(self.config["autoban"].get("enabled"))
         self.auto_ban_champion = self.config["autoban"].get("champion", "None")
         self.rengar = Rengar()
+        self.on_event = on_event or (lambda _level, _message: None)
+        self._running = True
 
     def save_settings(self):
         self.config["instalock"]["enabled"] = self.instalock_enabled
@@ -22,55 +24,55 @@ class InstalockAutoban:
         save_config(self.config)
 
     def update_champion_list(self):
-        response = self.rengar.lcu_request("GET", "/lol-champ-select/v1/all-grid-champions", "")
+        response = self.rengar.lcu_request(
+            "GET", "/lol-game-data/assets/v1/champion-summary.json", ""
+        )
 
         if response.status_code == 200:
             champion_data = response.json()
             for champ in champion_data:
                 champ_id = champ["id"]
                 champ_name = champ["name"]
-                self.champ_dict[champ_name.lower()] = champ_id
+                if champ_id > 0:
+                    self.champ_dict[champ_name.lower()] = champ_id
         else:
-            print("Failed to fetch champion data.")
+            raise RuntimeError(f"Could not fetch champion data (HTTP {response.status_code})")
+        return sorted(self.champ_dict)
 
     def champ_name_to_id(self, champ_name):
         return self.champ_dict.get(champ_name.lower(), -1)
 
     def set_instalock_champion(self, champion_name):
-        if champion_name == "99":
-            self.instalock_enabled = False
-            self.instalock_champion = "None"
-            self.save_settings()
+        if champion_name.lower() == "random":
+            self.instalock_champion = "Random"
         else:
             if not self.champ_dict:
                 self.update_champion_list()
-            champ_id = self.champ_name_to_id(champion_name)
-            if champ_id == -1:
-                print(f"Champion '{champion_name}' not found.")
-            else:
-                self.instalock_champion = champion_name
-                self.instalock_enabled = True
-                self.save_settings()
+            if self.champ_name_to_id(champion_name) == -1:
+                raise ValueError(f"Champion '{champion_name}' was not found")
+            self.instalock_champion = champion_name
+        self.instalock_enabled = True
+        self.save_settings()
+        self.on_event("success", f"Instalock configured for {self.instalock_champion}")
+        return self.instalock_champion
 
     def set_auto_ban_champion(self, champion_name):
-        if champion_name == "99":
-            self.auto_ban_enabled = False
-            self.auto_ban_champion = "None"
-            self.save_settings()
-        else:
-            if not self.champ_dict:
-                self.update_champion_list()
-            champ_id = self.champ_name_to_id(champion_name)
-            if champ_id == -1:
-                print(f"Champion '{champion_name}' not found.")
-            else:
-                self.auto_ban_champion = champion_name
-                self.auto_ban_enabled = True
-                self.save_settings()
+        if not self.champ_dict:
+            self.update_champion_list()
+        if self.champ_name_to_id(champion_name) == -1:
+            raise ValueError(f"Champion '{champion_name}' was not found")
+        self.auto_ban_champion = champion_name
+        self.auto_ban_enabled = True
+        self.save_settings()
+        self.on_event("success", f"AutoBan configured for {self.auto_ban_champion}")
+        return self.auto_ban_champion
 
     def monitor_champ_select(self):
-        while True:
+        while self._running:
             try:
+                if not self.instalock_enabled and not self.auto_ban_enabled:
+                    time.sleep(0.3)
+                    continue
                 if not self.champ_dict:
                     self.update_champion_list()
 
@@ -102,10 +104,18 @@ class InstalockAutoban:
                                 else:
                                     champion_id = self.champ_name_to_id(self.instalock_champion)
 
-                                self.rengar.lcu_request(
+                                response = self.rengar.lcu_request(
                                     "PATCH",
                                     f"/lol-champ-select/v1/session/actions/{action['id']}",
                                     {"completed": True, "championId": champion_id},
+                                )
+                                if not 200 <= response.status_code < 300:
+                                    raise RuntimeError(
+                                        f"Could not lock champion (HTTP {response.status_code})"
+                                    )
+                                self.on_event(
+                                    "success",
+                                    f"Locked {self.instalock_champion}",
                                 )
 
                                 time.sleep(0.3)
@@ -119,23 +129,40 @@ class InstalockAutoban:
                                 time.sleep(0.3)
                                 champion_id = self.champ_name_to_id(self.auto_ban_champion)
 
-                                self.rengar.lcu_request(
+                                response = self.rengar.lcu_request(
                                     "PATCH",
                                     f"/lol-champ-select/v1/session/actions/{action['id']}",
                                     {"completed": True, "championId": champion_id},
+                                )
+                                if not 200 <= response.status_code < 300:
+                                    raise RuntimeError(
+                                        f"Could not ban champion (HTTP {response.status_code})"
+                                    )
+                                self.on_event(
+                                    "success",
+                                    f"Banned {self.auto_ban_champion}",
                                 )
 
                                 continue
 
                 time.sleep(0.3)
-            except Exception as e:
-                print(f"Champion select monitor error: {e}")
+            except Exception as error:
+                self.on_event("error", f"Champion select monitor: {error}")
                 time.sleep(1)
 
     def toggle_instalock(self):
         self.instalock_enabled = not self.instalock_enabled
         self.save_settings()
+        state = "enabled" if self.instalock_enabled else "disabled"
+        self.on_event("info", f"Instalock {state}")
+        return self.instalock_enabled
 
     def toggle_auto_ban(self):
         self.auto_ban_enabled = not self.auto_ban_enabled
         self.save_settings()
+        state = "enabled" if self.auto_ban_enabled else "disabled"
+        self.on_event("info", f"AutoBan {state}")
+        return self.auto_ban_enabled
+
+    def stop(self):
+        self._running = False

@@ -23,7 +23,7 @@ class RageQueue:
     }
     DEFAULT_QUEUE_ID = 420
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, on_event=None):
         self.config = config if config is not None else load_config()
         settings = self.config.setdefault(
             "ragequeue",
@@ -44,6 +44,8 @@ class RageQueue:
         self._waiting_for_lobby = False
         self._start_requested = self.enabled
         self._last_phase = None
+        self.on_event = on_event or (lambda _level, _message: None)
+        self._running = True
 
     @property
     def queue_names(self):
@@ -74,6 +76,7 @@ class RageQueue:
         self.enabled = True
         self._start_requested = True
         self._save_settings()
+        self.on_event("success", f"Ragequeue configured for {self.queue_name}")
 
     def configure(self, queue_id, first_position, second_position):
         if queue_id not in self.queue_names:
@@ -91,6 +94,7 @@ class RageQueue:
         self.enabled = True
         self._start_requested = True
         self._save_settings()
+        self.on_event("success", f"Ragequeue configured for {self.queue_name}")
 
     def disable(self):
         self.enabled = False
@@ -99,6 +103,7 @@ class RageQueue:
         self._start_requested = False
         self._last_phase = None
         self._save_settings()
+        self.on_event("info", "Ragequeue disabled")
 
     def _save_settings(self):
         self.config["ragequeue"] = {
@@ -201,11 +206,14 @@ class RageQueue:
             self._start_requested = False
 
     def monitor_gameflow(self):
-        while True:
+        while self._running:
             if self.enabled:
                 try:
                     self.check_gameflow()
                 except Exception as error:
-                    print(f"Ragequeue monitor error: {error}")
+                    self.on_event("error", f"Ragequeue monitor: {error}")
 
             time.sleep(1)
+
+    def stop(self):
+        self._running = False

@@ -1,6 +1,7 @@
 import copy
 import json
 import sys
+import threading
 from pathlib import Path
 
 
@@ -12,6 +13,7 @@ def _config_path():
 
 
 CONFIG_PATH = _config_path()
+CONFIG_LOCK = threading.RLock()
 
 DEFAULT_CONFIG = {
     "instalock": {
@@ -50,19 +52,24 @@ def _merge_defaults(config, defaults):
 
 
 def load_config():
-    try:
-        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
-    except (FileNotFoundError, json.JSONDecodeError):
-        config = {}
+    with CONFIG_LOCK:
+        try:
+            with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+                config = json.load(config_file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            config = {}
 
-    config = _merge_defaults(config, DEFAULT_CONFIG)
-    save_config(config)
-    return config
+        config = _merge_defaults(config, DEFAULT_CONFIG)
+        save_config(config)
+        return config
 
 
 def save_config(config):
-    CONFIG_PATH.write_text(
-        json.dumps(config, indent=4) + "\n",
-        encoding="utf-8",
-    )
+    with CONFIG_LOCK:
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = CONFIG_PATH.with_suffix(f"{CONFIG_PATH.suffix}.tmp")
+        temporary_path.write_text(
+            json.dumps(config, indent=4) + "\n",
+            encoding="utf-8",
+        )
+        temporary_path.replace(CONFIG_PATH)

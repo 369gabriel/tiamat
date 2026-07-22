@@ -122,7 +122,6 @@ class Rengar:
 
         for attempt in range(REQUEST_RETRIES + 1):
             if not base_url:
-                check_league_client()
                 refresh_credentials()
                 base_url, headers = self._service_connection(service)
                 if not base_url:
@@ -140,7 +139,6 @@ class Rengar:
             except requests.exceptions.RequestException:
                 if attempt == REQUEST_RETRIES:
                     raise
-                check_league_client()
                 refresh_credentials()
                 base_url, headers = self._service_connection(service)
 

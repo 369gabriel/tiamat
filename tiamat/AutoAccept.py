@@ -4,23 +4,31 @@ from Rengar import Rengar
 
 
 class AutoAccept:
-    def __init__(self, config=None):
+    def __init__(self, config=None, on_event=None):
         self.config = config if config is not None else load_config()
         self.auto_accept_enabled = bool(self.config["auto_accept"].get("enabled"))
         self.rengar = Rengar()
+        self.on_event = on_event or (lambda _level, _message: None)
+        self._running = True
 
     def toggle_auto_accept(self):
         self.auto_accept_enabled = not self.auto_accept_enabled
         self.config["auto_accept"]["enabled"] = self.auto_accept_enabled
         save_config(self.config)
-        state = "ON" if self.auto_accept_enabled else "OFF"
-        print(f"Auto accept is now {state}.")
+        state = "enabled" if self.auto_accept_enabled else "disabled"
+        self.on_event("info", f"Auto Accept {state}")
+        return self.auto_accept_enabled
 
     def accept_match(self):
-        self.rengar.lcu_request("POST", "/lol-matchmaking/v1/ready-check/accept", "")
+        response = self.rengar.lcu_request(
+            "POST", "/lol-matchmaking/v1/ready-check/accept", ""
+        )
+        if not 200 <= response.status_code < 300:
+            raise RuntimeError(f"Could not accept match (HTTP {response.status_code})")
+        self.on_event("success", "Match accepted")
 
     def monitor_queue(self):
-        while True:
+        while self._running:
             if self.auto_accept_enabled:
                 try:
                     response = self.rengar.lcu_request(
@@ -32,7 +40,10 @@ class AutoAccept:
 
                         if match_data.get("searchState") == "Found":
                             self.accept_match()
-                except Exception as e:
-                    print(f"Auto accept monitor error: {e}")
+                except Exception as error:
+                    self.on_event("error", f"Auto Accept monitor: {error}")
 
             time.sleep(0.5)
+
+    def stop(self):
+        self._running = False

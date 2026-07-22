@@ -1,8 +1,10 @@
 # Tiamat
 
-Tiamat is a CLI Python script that provides utility functions for the League of Legends client, inspired by [KbotExt](https://github.com/KebsCS/KBotExt/), by Kebs.
+Tiamat is a keyboard-first terminal application that provides utility functions for the League of Legends client, inspired by [KbotExt](https://github.com/KebsCS/KBotExt/), by Kebs.
 
-![Tiamat Menu Interface](https://i.imgur.com/vtqEhFJ.png)
+The interface opens immediately, detects the League Client in the background, and keeps module state and recent activity visible in one workspace.
+
+![Tiamat menu interface](https://i.imgur.com/coZgPY9.png)
 
 ## ⚠️ Important Notice
 Use at your own risk, as some features might violate Riot Games' Terms of Service.
@@ -68,20 +70,46 @@ uv run pytest
 ## 💡 Usage
 
 ### First Time Setup
-1. Launch League of Legends client
-2. Start Tiamat
-3. Select desired function from the menu
+1. Start Tiamat.
+2. Launch the League of Legends client before or after Tiamat.
+3. Select a module with the arrow keys, mouse, or its number shortcut.
+
+### Keyboard Shortcuts
+
+| Key | Action |
+| --- | --- |
+| `Up` / `Down` or `j` / `k` | Navigate modules |
+| `Enter` | Open or run the selected module |
+| `Space` | Toggle the selected automation |
+| `/` | Search modules |
+| `1` through `15`, then `Enter` | Open or run a module directly |
+| `99`, then `Enter` or `q` | Exit |
+| `Esc` | Close a form or confirmation |
+| Left click | Open or run a module |
+| Right click | Toggle an automation |
 
 
-### Feature Guide
-* **Icon Changer**: Choose between icon changer (1-100) or client only (all icons)
-* **Profile Background**: Search the skin/champion name and select the one you want
-* **Auto Accept**: Automatically accepts match when found
-* **Ragequeue**: Automatically creates the selected lobby, fills unset position preferences, and starts queue after a game
-* **Autopick**: Select champion to instantly pick when available
-* **Autoban**: Select champion to ban during champion select
-* **Smart Dodge**: Dodge queue without client restart
-* **Chat Disconnect**: Disconnect from league chat and appear offline to your friends
+### Module Guide
+
+| Number | Category | Module |
+| --- | --- | --- |
+| `1` | Automation | Auto Accept |
+| `2` | Automation | Instalock |
+| `3` | Automation | AutoBan |
+| `4` | Automation | Ragequeue |
+| `5` | Customization | Profile Icon |
+| `6` | Customization | Client-Only Icon |
+| `7` | Customization | Profile Background |
+| `8` | Customization | Riot ID |
+| `9` | Customization | Profile Badges |
+| `10` | Customization | Status Message |
+| `11` | Game Tools | Lobby Reveal |
+| `12` | Game Tools | Dodge |
+| `13` | Game Tools | Restart Client UX |
+| `14` | Social | Disconnect Chat |
+| `15` | Social | Remove All Friends |
+
+Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.

@@ -1,27 +1,20 @@
 from Rengar import Rengar
 
 
-def change_riotid():
-	rengar = Rengar()
-	name = input("Type the new name\n")
-	tag = input("Type the new tag\n")
+def change_riotid(name, tag, rengar=None):
+    name = name.strip()
+    tag = tag.strip().lstrip("#")
+    if not name or not tag:
+        raise ValueError("Name and tag are required")
+    if len(name) > 16:
+        raise ValueError("Name must be 16 characters or fewer")
+    if len(tag) > 5:
+        raise ValueError("Tag must be 5 characters or fewer")
 
-	if tag == "" or name == "":
-
-		print("Insert a valid name/tag.")
-		input("\nPress Enter.")
-	elif len(name) > 16:
-		print("Name length is bigger than 16.")
-		input("\nPress Enter.")
-	elif len(tag) > 5:
-		print("Tag length is bigger than 5")
-		input("\nPress Enter.")
-
-	else:
-		body = {
-		f"gameName": name,
-		"tagLine": tag
-		}
-		change = rengar.lcu_request("POST", "/lol-summoner/v1/save-alias", body)
-		print(change.text)
-		input("\nPress Enter.")
+    api = rengar or Rengar()
+    response = api.lcu_request(
+        "POST", "/lol-summoner/v1/save-alias", {"gameName": name, "tagLine": tag}
+    )
+    if not 200 <= response.status_code < 300:
+        raise RuntimeError(f"Could not change Riot ID (HTTP {response.status_code})")
+    return f"{name}#{tag}"
