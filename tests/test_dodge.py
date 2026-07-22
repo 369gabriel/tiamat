@@ -18,26 +18,26 @@ class FakeRengar:
         return FakeResponse(next(self.statuses))
 
 
-def test_dodge_stops_after_first_success():
-    api = FakeRengar([200])
+def test_dodge_sends_five_requests_after_success():
+    api = FakeRengar([200] * 5)
 
     dodge(api)
 
-    assert api.calls == 1
+    assert api.calls == 5
 
 
-def test_dodge_retries_non_success_responses():
-    api = FakeRengar([500, 500, 204])
+def test_dodge_succeeds_if_any_of_the_five_requests_succeeds():
+    api = FakeRengar([500, 500, 204, 500, 500])
 
     dodge(api)
 
-    assert api.calls == 3
+    assert api.calls == 5
 
 
 def test_dodge_raises_after_bounded_attempts():
-    api = FakeRengar([500] * 6)
+    api = FakeRengar([500] * 5)
 
     with pytest.raises(RuntimeError, match="HTTP 500"):
         dodge(api)
 
-    assert api.calls == 6
+    assert api.calls == 5
