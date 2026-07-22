@@ -1,13 +1,12 @@
-$background: #0b0b0e;
-$surface: #121217;
-$elevated: #19191f;
-$border: #2a2a32;
-$text: #e7e7ea;
-$muted: #8b8b96;
-$accent: #d14b4b;
-$success: #70a87b;
-$warning: #c9a45c;
-$info: #7296b8;
+$background: #071018;
+$surface: #0d1822;
+$elevated: #122434;
+$border: #27455c;
+$text: #eff5f8;
+$muted: #88a2b6;
+$accent: #ff7a59;
+$success: #5fd19a;
+$info: #75c7ff;
 
 Screen {
     background: $background;
@@ -15,21 +14,32 @@ Screen {
 }
 
 #header {
-    height: 3;
-    padding: 1 2 0 2;
+    height: 5;
+    padding: 1 2;
     border-bottom: solid $border;
 }
 
-#brand {
+#brand-block {
     width: 1fr;
+}
+
+#brand {
     color: $accent;
     text-style: bold;
+    height: 1;
+}
+
+#brand-subtitle {
+    color: $muted;
+    height: 1;
 }
 
 #connection {
-    width: auto;
+    width: 34;
     color: $muted;
     text-align: right;
+    background: $elevated;
+    padding: 1 1 0 1;
 }
 
 #connection.connected {
@@ -42,10 +52,11 @@ Screen {
 }
 
 #module-panel {
-    width: 46;
+    width: 44;
     min-width: 34;
     border-right: solid $border;
-    padding: 1 1 0 2;
+    padding: 1 1 0 1;
+    background: $surface;
 }
 
 .panel-heading {
@@ -74,7 +85,7 @@ Screen {
 }
 
 .feature-item {
-    height: 2;
+    height: 3;
     padding: 0 1;
     background: transparent;
 }
@@ -106,36 +117,58 @@ Screen {
 
 #detail-panel {
     width: 1fr;
-    padding: 2 4;
+    padding: 2 3;
 }
 
 #detail-title {
-    height: 2;
+    height: 1;
     text-style: bold;
+    color: $accent;
+}
+
+#detail-kicker {
+    height: 1;
+    color: $muted;
+    margin-bottom: 1;
 }
 
 #detail-description {
     height: auto;
-    max-width: 70;
-    color: $muted;
-    margin-bottom: 2;
+    max-width: 72;
+    color: $text;
+    background: $surface;
+    padding: 1 2;
+    margin-bottom: 1;
 }
 
-#detail-meta {
-    height: auto;
+#detail-cards {
+    height: 5;
+    margin-bottom: 1;
+}
+
+.detail-card {
+    width: 1fr;
+    background: $elevated;
     color: $text;
-    margin-bottom: 2;
+    padding: 1 2;
+}
+
+#detail-state-card {
+    margin-right: 1;
 }
 
 #detail-actions {
     height: auto;
     color: $info;
+    background: $surface;
+    padding: 1 2;
 }
 
 #activity-panel {
-    height: 8;
+    height: 10;
     border-top: solid $border;
     padding: 1 2 0 2;
+    background: $surface;
 }
 
 #activity-log {
@@ -147,7 +180,7 @@ Screen {
 
 #shortcut-bar {
     display: none;
-    height: 1;
+    height: 2;
     padding: 0 2;
     background: $elevated;
     color: $text;
@@ -158,8 +191,8 @@ Screen {
 }
 
 #keybar {
-    height: 2;
-    padding: 0 2;
+    height: 3;
+    padding: 1 2;
     background: $surface;
     color: $muted;
 }
@@ -170,11 +203,11 @@ DialogScreen {
 }
 
 .dialog {
-    width: 58;
+    width: 64;
     height: auto;
     max-width: 94%;
     max-height: 92%;
-    padding: 0 1;
+    padding: 1 2;
     background: $surface;
     border: solid $border;
     overflow-y: auto;
@@ -183,6 +216,7 @@ DialogScreen {
 .dialog-title {
     height: 1;
     text-style: bold;
+    color: $accent;
 }
 
 .dialog-copy {

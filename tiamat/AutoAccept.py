@@ -15,8 +15,8 @@ class AutoAccept:
         self.auto_accept_enabled = not self.auto_accept_enabled
         self.config["auto_accept"]["enabled"] = self.auto_accept_enabled
         save_config(self.config)
-        state = "enabled" if self.auto_accept_enabled else "disabled"
-        self.on_event("info", f"Auto Accept {state}")
+        state = "activado" if self.auto_accept_enabled else "desactivado"
+        self.on_event("info", f"Autoaceptar {state}")
         return self.auto_accept_enabled
 
     def accept_match(self):
@@ -24,8 +24,8 @@ class AutoAccept:
             "POST", "/lol-matchmaking/v1/ready-check/accept", ""
         )
         if not 200 <= response.status_code < 300:
-            raise RuntimeError(f"Could not accept match (HTTP {response.status_code})")
-        self.on_event("success", "Match accepted")
+            raise RuntimeError(f"No se pudo aceptar la partida (HTTP {response.status_code})")
+        self.on_event("success", "Partida aceptada")
 
     def monitor_queue(self):
         while self._running:
@@ -41,7 +41,7 @@ class AutoAccept:
                         if match_data.get("searchState") == "Found":
                             self.accept_match()
                 except Exception as error:
-                    self.on_event("error", f"Auto Accept monitor: {error}")
+                    self.on_event("error", f"Monitor de autoaceptar: {error}")
 
             time.sleep(0.5)
 

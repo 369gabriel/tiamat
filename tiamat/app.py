@@ -38,13 +38,19 @@ class TiamatApp(App):
     CSS_PATH = "tiamat.tcss"
     TITLE = "tiamat"
     ENABLE_COMMAND_PALETTE = False
+    STATUS_LABELS = {
+        "ON": "ACTIVO",
+        "OFF": "INACTIVO",
+        "--": "--",
+        "Ready": "LISTO",
+    }
 
     def __init__(self, connect_on_mount=True):
         super().__init__()
         self.connect_on_mount = connect_on_mount
         self.config = load_config()
         self.connected = False
-        self.account_text = "League Client not detected"
+        self.account_text = "Cliente de League no detectado"
         self.chat = None
         self.shortcut_buffer = ""
         self.selected_feature_number = 1
@@ -61,7 +67,9 @@ class TiamatApp(App):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="header"):
-            yield Static("tiamat", id="brand")
+            with Vertical(id="brand-block"):
+                yield Static("TIAMAT", id="brand")
+                yield Static("Panel tactico para el cliente de League", id="brand-subtitle")
             yield Static(self.account_text, id="connection")
 
         feature_items = []
@@ -74,22 +82,25 @@ class TiamatApp(App):
 
         with Horizontal(id="workspace"):
             with Vertical(id="module-panel"):
-                yield Static("MODULES", classes="panel-heading")
+                yield Static("MODULOS", classes="panel-heading")
                 yield ListView(*feature_items, initial_index=1, id="feature-list")
             with Vertical(id="detail-panel"):
-                yield Static("AUTO ACCEPT", id="detail-title")
+                yield Static("AUTOACEPTAR", id="detail-title")
+                yield Static("", id="detail-kicker")
                 yield Static("", id="detail-description")
-                yield Static("", id="detail-meta")
+                with Horizontal(id="detail-cards"):
+                    yield Static("", id="detail-state-card", classes="detail-card")
+                    yield Static("", id="detail-client-card", classes="detail-card")
                 yield Static("", id="detail-actions")
 
         with Vertical(id="activity-panel"):
-            yield Static("ACTIVITY", classes="panel-heading")
+            yield Static("ACTIVIDAD", classes="panel-heading")
             yield RichLog(id="activity-log", markup=True, wrap=True, max_lines=100)
 
         yield Static("", id="shortcut-bar")
         yield Static(
-            "up/down navigate   enter open   space toggle   / filter   ? help   q quit\n"
-            "left click open   right click toggle",
+            "arriba/abajo navegar   enter abrir   espacio alternar   / buscar   ? ayuda   q salir\n"
+            "click izquierdo abrir   click derecho alternar",
             id="keybar",
         )
 
@@ -97,7 +108,7 @@ class TiamatApp(App):
         self._ui_thread_id = threading.get_ident()
         self.refresh_feature_states()
         self.show_feature(1)
-        self.add_activity("system", "Tiamat started")
+        self.add_activity("system", "Tiamat iniciado")
         if self.connect_on_mount:
             self.run_worker(
                 self.connection_loop,
@@ -132,14 +143,14 @@ class TiamatApp(App):
                         self.call_from_thread(
                             self.add_activity,
                             "warning",
-                            f"Chat status unavailable: {error}",
+                            f"Estado del chat no disponible: {error}",
                         )
                     self.call_from_thread(
                         self.client_connected, account_text, chat, api
                     )
                 except Exception as error:
                     self.call_from_thread(
-                        self.add_activity, "error", f"Client connection: {error}"
+                        self.add_activity, "error", f"Conexion del cliente: {error}"
                     )
                     credentials = (None, None)
             elif previous_credentials != (None, None) and credentials == (None, None):
@@ -154,13 +165,13 @@ class TiamatApp(App):
         )
         region_response = api.lcu_request("GET", "/riotclient/region-locale", "")
         if summoner_response.status_code != 200:
-            return "League Client connected"
+            return "Cliente de League conectado"
         summoner = summoner_response.json()
         riot_id = f"{summoner.get('gameName', 'Unknown')}#{summoner.get('tagLine', 'Unknown')}"
         region = ""
         if region_response.status_code == 200:
             region = region_response.json().get("webRegion", "").upper()
-        return f"connected  {riot_id}" + (f"  {region}" if region else "")
+        return f"conectado  {riot_id}" + (f"  {region}" if region else "")
 
     def client_connected(self, account_text, chat, api):
         self.connected = True
@@ -172,7 +183,7 @@ class TiamatApp(App):
         connection = self.query_one("#connection", Static)
         connection.update(account_text)
         connection.set_class(True, "connected")
-        self.add_activity("system", "Connected to League Client")
+        self.add_activity("system", "Conectado al cliente de League")
         self.refresh_feature_states()
         if not self._monitors_started:
             self._monitors_started = True
@@ -201,11 +212,11 @@ class TiamatApp(App):
     def client_disconnected(self):
         self.connected = False
         self.chat = None
-        self.account_text = "League Client not detected"
+        self.account_text = "Cliente de League no detectado"
         connection = self.query_one("#connection", Static)
         connection.update(self.account_text)
         connection.set_class(False, "connected")
-        self.add_activity("warning", "League Client disconnected; waiting to reconnect")
+        self.add_activity("warning", "Cliente desconectado; esperando reconexion")
         self.refresh_feature_states()
 
     def receive_automation_event(self, level, message):
@@ -261,7 +272,7 @@ class TiamatApp(App):
         for feature in FEATURES:
             state = self.feature_state(feature.number)
             label = self.query_one(f"#state-{feature.number}", Label)
-            label.update(state)
+            label.update(self.translate_state(state))
             label.set_class(state not in {"", "OFF", "--"}, "state-active")
         self.show_feature(self.selected_feature_number)
 
@@ -269,25 +280,35 @@ class TiamatApp(App):
         feature = next(item for item in FEATURES if item.number == number)
         self.selected_feature_number = number
         self.query_one("#detail-title", Static).update(feature.title.upper())
+        self.query_one("#detail-kicker", Static).update(
+            f"Modulo {feature.number:02d}  {feature.category}"
+        )
         self.query_one("#detail-description", Static).update(feature.description)
 
         state = self.feature_state(number)
-        state_text = state or "Ready"
-        connected_text = "available" if self.connected else "waiting for League Client"
-        meta = f"STATUS\n{state_text}\n\nCLIENT\n{connected_text}"
-        self.query_one("#detail-meta", Static).update(meta)
+        state_text = self.translate_state(state or "Ready")
+        connected_text = "Disponible" if self.connected else "Esperando cliente"
+        self.query_one("#detail-state-card", Static).update(
+            f"ESTADO\n{state_text}"
+        )
+        self.query_one("#detail-client-card", Static).update(
+            f"CLIENTE\n{connected_text}"
+        )
 
         if feature.kind == "toggle":
-            actions = "ENTER  toggle\nSPACE  toggle"
+            actions = "ENTER  alternar\nSPACE  alternar"
         elif feature.kind == "configure":
-            actions = "ENTER  configure"
+            actions = "ENTER  configurar"
             if number in {2, 3, 4}:
-                actions += "\nSPACE  enable / disable"
+                actions += "\nSPACE  activar / desactivar"
         else:
-            actions = "ENTER  run"
+            actions = "ENTER  ejecutar"
         if feature.destructive:
-            actions += "\nConfirmation required"
+            actions += "\nRequiere confirmacion"
         self.query_one("#detail-actions", Static).update(actions)
+
+    def translate_state(self, value):
+        return self.STATUS_LABELS.get(value, value)
 
     def on_list_view_highlighted(self, event):
         if isinstance(event.item, FeatureItem):
@@ -315,7 +336,7 @@ class TiamatApp(App):
             return
 
         key = event.key
-        if key.isdigit() and len(key) == 1:
+        if len(key) == 1 and key.isdigit():
             event.stop()
             self.append_shortcut(key)
             return
@@ -349,15 +370,19 @@ class TiamatApp(App):
                 for feature in FEATURES
             ]
             self.push_screen(
-                SearchScreen("Find Module", "Search by module name or number.", choices),
+                SearchScreen(
+                    "Buscar modulo",
+                    "Busca por nombre o numero del modulo.",
+                    choices,
+                ),
                 self.select_feature,
             )
         elif key in {"?", "question_mark"}:
             event.stop()
             self.notify(
-                "Use arrows or j/k to navigate. Type a module number and press Enter to run it. "
-                "Left click opens a module; right click toggles it.",
-                title="Keyboard help",
+                "Usa flechas o j/k para navegar. Escribe un numero de modulo y presiona Enter para ejecutarlo. "
+                "Click izquierdo abre el modulo; click derecho lo alterna.",
+                title="Ayuda de teclado",
                 timeout=6,
             )
         elif key == "q":
@@ -372,10 +397,10 @@ class TiamatApp(App):
         self.shortcut_buffer = candidate
         exact = next(
             (feature.title for feature in FEATURES if str(feature.number) == candidate),
-            "Exit" if candidate == "99" else "",
+            "Salir" if candidate == "99" else "",
         )
         self.query_one("#shortcut-bar", Static).update(
-            f"Shortcut: {candidate}_" + (f"    {exact}" if exact else "")
+            f"Atajo: {candidate}_" + (f"    {exact}" if exact else "")
         )
         self.set_class(True, "entering-shortcut")
 
@@ -396,8 +421,8 @@ class TiamatApp(App):
     def require_connection(self):
         if self.connected:
             return True
-        self.add_activity("warning", "Start the League Client before using this module")
-        self.notify("League Client is not connected", severity="warning")
+        self.add_activity("warning", "Abre el cliente de League antes de usar este modulo")
+        self.notify("El cliente de League no esta conectado", severity="warning")
         return False
 
     def run_feature_action(self, description, action, success_message, on_success=None):
@@ -495,14 +520,18 @@ class TiamatApp(App):
         def show_search(champions):
             choices = [("Random", "Random")] if mode == "instalock" else []
             choices.extend((name.title(), name.title()) for name in champions)
-            title = "Instalock Champion" if mode == "instalock" else "AutoBan Champion"
+            title = "Campeon de Instalock" if mode == "instalock" else "Campeon de Autoban"
             self.push_screen(
-                SearchScreen(title, "Type a champion name, then select it.", choices),
+                SearchScreen(
+                    title,
+                    "Escribe el nombre del campeon y luego selecciona uno.",
+                    choices,
+                ),
                 lambda champion: self.save_champion(mode, champion),
             )
 
         self.run_feature_action(
-            "Loading champions",
+            "Cargando campeones",
             self.champion_automation.update_champion_list,
             "",
             show_search,
@@ -517,9 +546,9 @@ class TiamatApp(App):
             else self.champion_automation.set_auto_ban_champion
         )
         self.run_feature_action(
-            f"Configuring {mode}",
+            f"Configurando {mode}",
             lambda: setter(champion),
-            lambda value: f"{mode.title()} configured for {value}",
+            lambda value: f"{mode.title()} configurado para {value}",
         )
 
     def open_ragequeue(self):
@@ -545,18 +574,18 @@ class TiamatApp(App):
         else:
             action = lambda: self.ragequeue.configure(queue_id, first, second)
         self.run_feature_action(
-            "Saving Ragequeue",
+            "Guardando Ragequeue",
             action,
-            lambda _result: f"Ragequeue enabled for {self.ragequeue.queue_name}",
+            lambda _result: f"Ragequeue activado para {self.ragequeue.queue_name}",
         )
 
     def open_profile_icon(self):
         self.push_screen(
             InputFormScreen(
-                "Profile Icon",
-                "Enter the numeric profile icon ID.",
-                [("icon", "Icon ID", "For example: 29", "")],
-                "Change icon",
+                "Icono de Perfil",
+                "Ingresa el ID numerico del icono de perfil.",
+                [("icon", "ID del icono", "Por ejemplo: 29", "")],
+                "Cambiar icono",
                 self.validate_icon_form,
             ),
             lambda values: self.submit_icon(values, client_only=False),
@@ -565,10 +594,10 @@ class TiamatApp(App):
     def open_client_icon(self):
         self.push_screen(
             InputFormScreen(
-                "Client-Only Icon",
-                "Enter an icon ID to display only in the League Client.",
-                [("icon", "Icon ID", "For example: 29", "")],
-                "Change icon",
+                "Icono Solo Cliente",
+                "Ingresa un ID de icono para mostrarlo solo dentro del cliente.",
+                [("icon", "ID del icono", "Por ejemplo: 29", "")],
+                "Cambiar icono",
                 self.validate_icon_form,
             ),
             lambda values: self.submit_icon(values, client_only=True),
@@ -578,11 +607,11 @@ class TiamatApp(App):
         if not values:
             return
         action = icon_client if client_only else change_profile_icon
-        label = "Client icon" if client_only else "Profile icon"
+        label = "Icono del cliente" if client_only else "Icono de perfil"
         self.run_feature_action(
-            f"Changing {label.lower()}",
+            f"Cambiando {label.lower()}",
             lambda: action(values["icon"]),
-            lambda icon_id: f"{label} changed to {icon_id}",
+            lambda icon_id: f"{label} cambiado a {icon_id}",
         )
 
     def open_background_search(self):
@@ -593,34 +622,34 @@ class TiamatApp(App):
             ]
             self.push_screen(
                 SearchScreen(
-                    "Profile Background",
-                    "Search by champion or skin name.",
+                    "Fondo de Perfil",
+                    "Busca por campeon o por nombre de skin.",
                     choices,
                 ),
                 self.save_background,
             )
 
-        self.run_feature_action("Loading skins", fetch_all_champion_skins, "", show_skins)
+        self.run_feature_action("Cargando skins", fetch_all_champion_skins, "", show_skins)
 
     def save_background(self, skin):
         if not skin:
             return
         self.run_feature_action(
-            "Changing profile background",
+            "Cambiando fondo de perfil",
             lambda: change_profile_background(skin["id"]),
-            f"Profile background changed to {skin['champion']} - {skin['name']}",
+            f"Fondo de perfil cambiado a {skin['champion']} - {skin['name']}",
         )
 
     def open_riot_id(self):
         self.push_screen(
             InputFormScreen(
                 "Riot ID",
-                "Enter the new game name and tag.",
+                "Ingresa el nuevo nombre y tag.",
                 [
-                    ("name", "Game name", "Up to 16 characters", "", 16),
-                    ("tag", "Tag", "Up to 5 characters", "", 5),
+                    ("name", "Nombre", "Hasta 16 caracteres", "", 16),
+                    ("tag", "Tag", "Hasta 5 caracteres", "", 5),
                 ],
-                "Change Riot ID",
+                "Cambiar Riot ID",
                 self.validate_riot_id_form,
             ),
             self.save_riot_id,
@@ -632,7 +661,7 @@ class TiamatApp(App):
             if int(values["icon"]) < 1:
                 raise ValueError
         except ValueError:
-            return "Icon ID must be a positive number."
+            return "El ID del icono debe ser un numero positivo."
         return ""
 
     @staticmethod
@@ -640,20 +669,20 @@ class TiamatApp(App):
         name = values["name"].strip()
         tag = values["tag"].strip().lstrip("#")
         if not name or not tag:
-            return "Game name and tag are required."
+            return "El nombre y el tag son obligatorios."
         if len(name) > 16:
-            return "Game name must be 16 characters or fewer."
+            return "El nombre debe tener 16 caracteres o menos."
         if len(tag) > 5:
-            return "Tag must be 5 characters or fewer."
+            return "El tag debe tener 5 caracteres o menos."
         return ""
 
     def save_riot_id(self, values):
         if not values:
             return
         self.run_feature_action(
-            "Changing Riot ID",
+            "Cambiando Riot ID",
             lambda: change_riotid(values["name"], values["tag"]),
-            lambda riot_id: f"Riot ID changed to {riot_id}",
+            lambda riot_id: f"Riot ID cambiado a {riot_id}",
         )
 
     def open_badges(self):
@@ -664,9 +693,9 @@ class TiamatApp(App):
             return
         mode, glitched_id = values
         self.run_feature_action(
-            "Updating profile badges",
+            "Actualizando insignias de perfil",
             lambda: change_profile_badges(mode, glitched_id),
-            "Profile badges updated",
+            "Insignias de perfil actualizadas",
         )
 
     def open_status(self):
@@ -676,23 +705,23 @@ class TiamatApp(App):
         if status is None:
             return
         self.run_feature_action(
-            "Updating status message",
+            "Actualizando mensaje de estado",
             lambda: change_status(status),
-            "Status message updated",
+            "Mensaje de estado actualizado",
         )
 
     def run_lobby_reveal(self):
-        self.run_feature_action("Revealing lobby", reveal, "Lobby opened in your browser")
+        self.run_feature_action("Revelando lobby", reveal, "Lobby abierta en tu navegador")
 
     def confirm_dodge(self):
         self.push_screen(
             ConfirmScreen(
-                "Dodge Champion Select",
-                "This will immediately leave the current champion select.",
-                "Dodge now",
+                "Dodge de Seleccion",
+                "Esto saldra inmediatamente de la seleccion actual.",
+                "Hacer dodge",
             ),
             lambda confirmed: self.run_feature_action(
-                "Dodging champion select", dodge, "Champion select dodged"
+                "Haciendo dodge en seleccion", dodge, "Seleccion abandonada"
             )
             if confirmed
             else None,
@@ -701,12 +730,12 @@ class TiamatApp(App):
     def confirm_restart(self):
         self.push_screen(
             ConfirmScreen(
-                "Restart Client UX",
-                "The League Client interface will close briefly and restart.",
-                "Restart UX",
+                "Reiniciar Cliente UX",
+                "La interfaz del cliente se cerrara un momento y luego volvera.",
+                "Reiniciar UX",
             ),
             lambda confirmed: self.run_feature_action(
-                "Restarting Client UX", restart, "Client UX restart requested"
+                "Reiniciando Cliente UX", restart, "Reinicio de UX solicitado"
             )
             if confirmed
             else None,
@@ -714,36 +743,36 @@ class TiamatApp(App):
 
     def toggle_chat(self):
         if self.chat is None:
-            self.add_activity("warning", "Riot chat is not currently available")
-            self.notify("Riot chat is not currently available", severity="warning")
+            self.add_activity("warning", "El chat de Riot no esta disponible ahora mismo")
+            self.notify("El chat de Riot no esta disponible ahora mismo", severity="warning")
             return
         self.run_feature_action(
-            "Changing chat connection",
+            "Cambiando conexion del chat",
             self.chat.toggle_chat,
-            lambda disconnected: "Chat disconnected" if disconnected else "Chat reconnected",
+            lambda disconnected: "Chat desconectado" if disconnected else "Chat reconectado",
         )
 
     def prepare_remove_friends(self):
         def confirm(friends):
             count = len(friends)
             if count == 0:
-                self.add_activity("info", "There are no friends to remove")
-                self.notify("There are no friends to remove")
+                self.add_activity("info", "No hay amigos para eliminar")
+                self.notify("No hay amigos para eliminar")
                 return
             self.push_screen(
                 ConfirmScreen(
-                    "Remove All Friends",
-                    f"This permanently removes all {count} friends from the account.",
-                    f"Remove {count}",
+                    "Eliminar Todos los Amigos",
+                    f"Esto eliminara permanentemente a los {count} amigos de la cuenta.",
+                    f"Eliminar {count}",
                 ),
                 lambda confirmed: self.remove_friends(friends) if confirmed else None,
             )
 
-        self.run_feature_action("Reading friends list", get_friends, "", confirm)
+        self.run_feature_action("Leyendo lista de amigos", get_friends, "", confirm)
 
     def remove_friends(self, friends):
         self.run_feature_action(
-            "Removing all friends",
+            "Eliminando todos los amigos",
             lambda: remove_all_friends(friends),
-            lambda counts: f"Removed {counts[0]} friends; {counts[1]} failed",
+            lambda counts: f"Se eliminaron {counts[0]} amigos; {counts[1]} fallaron",
         )

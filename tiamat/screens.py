@@ -7,7 +7,7 @@ from textual.widgets.option_list import Option
 
 
 class EnterSelect(Select, inherit_bindings=False):
-    BINDINGS = [Binding("enter", "show_overlay", "Show menu", show=False)]
+    BINDINGS = [Binding("enter", "show_overlay", "Mostrar menu", show=False)]
 
 
 class DialogScreen(ModalScreen):
@@ -41,10 +41,7 @@ class DialogScreen(ModalScreen):
         focused = self.focused
         if event.key in {"down", "up"} and (
             isinstance(focused, Input)
-            or (
-                isinstance(focused, EnterSelect)
-                and not focused.expanded
-            )
+            or (isinstance(focused, EnterSelect) and not focused.expanded)
         ):
             event.stop()
             if event.key == "down":
@@ -60,7 +57,7 @@ class DialogScreen(ModalScreen):
 
 
 class ConfirmScreen(DialogScreen):
-    def __init__(self, title, message, confirm_label="Confirm"):
+    def __init__(self, title, message, confirm_label="Confirmar"):
         super().__init__()
         self.dialog_title = title
         self.message = message
@@ -71,7 +68,7 @@ class ConfirmScreen(DialogScreen):
             yield Label(self.dialog_title, classes="dialog-title")
             yield Static(self.message, classes="dialog-copy")
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
                 yield Button(
                     self.confirm_label,
                     id="confirm",
@@ -87,7 +84,7 @@ class ConfirmScreen(DialogScreen):
 
 
 class InputFormScreen(DialogScreen):
-    def __init__(self, title, description, fields, submit_label="Save", validator=None):
+    def __init__(self, title, description, fields, submit_label="Guardar", validator=None):
         super().__init__()
         self.dialog_title = title
         self.description = description
@@ -111,7 +108,7 @@ class InputFormScreen(DialogScreen):
                 )
             yield Label("", id="form-error", classes="form-error")
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
                 yield Button(
                     self.submit_label,
                     id="submit",
@@ -155,10 +152,10 @@ class RagequeueScreen(DialogScreen):
         with Vertical(classes="dialog form-dialog"):
             yield Label("Ragequeue", classes="dialog-title")
             yield Static(
-                "Choose the lobby and role preferences to use after each game.",
+                "Elige la cola y las posiciones que se usaran despues de cada partida.",
                 classes="dialog-copy",
             )
-            yield Label("Queue", classes="field-label")
+            yield Label("Cola", classes="field-label")
             yield EnterSelect(
                 self.queue_options,
                 value=self.values[0],
@@ -166,7 +163,7 @@ class RagequeueScreen(DialogScreen):
                 id="queue",
                 compact=True,
             )
-            yield Label("First position", classes="field-label position-field")
+            yield Label("Primera posicion", classes="field-label position-field")
             yield EnterSelect(
                 self.position_options,
                 value=self.values[1] or "TOP",
@@ -175,7 +172,7 @@ class RagequeueScreen(DialogScreen):
                 classes="position-field",
                 compact=True,
             )
-            yield Label("Second position", classes="field-label position-field")
+            yield Label("Segunda posicion", classes="field-label position-field")
             yield EnterSelect(
                 self.position_options,
                 value=self.values[2] or "JUNGLE",
@@ -186,9 +183,9 @@ class RagequeueScreen(DialogScreen):
             )
             yield Label("", id="form-error", classes="form-error")
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
                 yield Button(
-                    "Save and enable",
+                    "Guardar y activar",
                     id="submit",
                     variant="primary",
                     compact=True,
@@ -210,7 +207,7 @@ class RagequeueScreen(DialogScreen):
         second = self.query_one("#second-position", Select).value
         if queue_id != 450 and first == second:
             self.query_one("#form-error", Label).update(
-                "First and second positions must be different."
+                "La primera y la segunda posicion deben ser distintas."
             )
             return
         self.dismiss((queue_id, first, second))
@@ -218,16 +215,19 @@ class RagequeueScreen(DialogScreen):
 
 class BadgeScreen(DialogScreen):
     MODES = (
-        ("Empty all badge slots", "empty"),
-        ("Copy the first badge to all slots", "copy"),
-        ("Set all slots to a glitched ID", "glitched"),
+        ("Vaciar todos los espacios", "empty"),
+        ("Copiar la primera insignia a todos los espacios", "copy"),
+        ("Asignar un ID bugueado a todos los espacios", "glitched"),
     )
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog form-dialog"):
-            yield Label("Profile Badges", classes="dialog-title")
-            yield Static("Choose how the three badge slots should be updated.", classes="dialog-copy")
-            yield Label("Mode", classes="field-label")
+            yield Label("Insignias de Perfil", classes="dialog-title")
+            yield Static(
+                "Elige como se actualizaran los tres espacios de insignias.",
+                classes="dialog-copy",
+            )
+            yield Label("Modo", classes="field-label")
             yield EnterSelect(
                 self.MODES,
                 value="empty",
@@ -235,13 +235,13 @@ class BadgeScreen(DialogScreen):
                 id="badge-mode",
                 compact=True,
             )
-            yield Label("Glitched ID (0-5)", classes="field-label")
+            yield Label("ID bugueado (0-5)", classes="field-label")
             yield Input("0", id="glitched-id")
             yield Label("", id="form-error", classes="form-error")
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
                 yield Button(
-                    "Apply badges",
+                    "Aplicar insignias",
                     id="submit",
                     variant="primary",
                     compact=True,
@@ -258,7 +258,7 @@ class BadgeScreen(DialogScreen):
                 if not 0 <= int(glitched_id) <= 5:
                     raise ValueError
             except ValueError:
-                self.query_one("#form-error", Label).update("Enter a number from 0 through 5.")
+                self.query_one("#form-error", Label).update("Ingresa un numero entre 0 y 5.")
                 return
         self.dismiss((mode, glitched_id))
 
@@ -266,17 +266,20 @@ class BadgeScreen(DialogScreen):
 class StatusScreen(DialogScreen):
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog status-dialog"):
-            yield Label("Status Message", classes="dialog-title")
-            yield Static("Write the status shown to friends in the League Client.", classes="dialog-copy")
+            yield Label("Mensaje de Estado", classes="dialog-title")
+            yield Static(
+                "Escribe el estado que veran tus amigos en el cliente de League.",
+                classes="dialog-copy",
+            )
             yield TextArea(
-                placeholder="Enter a status message",
+                placeholder="Escribe un mensaje de estado",
                 id="status-editor",
                 compact=True,
             )
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
                 yield Button(
-                    "Save status",
+                    "Guardar estado",
                     id="submit",
                     variant="primary",
                     compact=True,
@@ -304,12 +307,12 @@ class SearchScreen(DialogScreen):
             yield Label(self.dialog_title, classes="dialog-title")
             yield Static(self.description, classes="dialog-copy")
             yield Input(
-                placeholder="Type to filter",
+                placeholder="Escribe para filtrar",
                 id="search-input",
             )
             yield OptionList(id="search-results", compact=True)
             with Horizontal(classes="dialog-actions"):
-                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Cancelar", id="cancel", compact=True)
 
     def on_mount(self):
         self.update_options("")
