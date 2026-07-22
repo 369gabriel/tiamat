@@ -19,16 +19,16 @@ def run_app_test(test, size=(120, 40)):
 
 def test_app_mounts_grouped_numbered_interface():
     async def check(app, _pilot):
-        assert str(app.query_one("#brand", Static).render()) == "tiamat"
+        assert str(app.query_one("#brand", Static).render()) == "TIAMAT"
         assert len(app.query(FeatureItem)) == 15
-        assert app.query_one("#feature-1", FeatureItem).feature.title == "Auto Accept"
-        assert app.query_one("#feature-15", FeatureItem).feature.title == "Remove All Friends"
-        assert "League Client not detected" in str(
+        assert app.query_one("#feature-1", FeatureItem).feature.title == "Autoaceptar"
+        assert app.query_one("#feature-15", FeatureItem).feature.title == "Eliminar Amigos"
+        assert "Cliente de League no detectado" in str(
             app.query_one("#connection", Static).render()
         )
         keybar = str(app.query_one("#keybar", Static).render())
-        assert "left click open" in keybar
-        assert "right click toggle" in keybar
+        assert "click izquierdo abrir" in keybar
+        assert "click derecho alternar" in keybar
 
     run_app_test(check)
 
@@ -105,7 +105,7 @@ def test_local_configuration_and_confirmation_screens_mount():
 def test_search_can_be_completed_from_the_keyboard():
     async def check(app, pilot):
         await pilot.press("/")
-        await pilot.press(*"status")
+        await pilot.press(*"estado")
         await pilot.press("enter")
         await pilot.pause()
         assert len(app.screen_stack) == 1
@@ -122,7 +122,7 @@ def test_invalid_icon_is_kept_in_form_with_inline_error():
         await pilot.pause()
         assert len(app.screen_stack) == 2
         assert app.screen.query_one("#field-icon", Input).value == "0"
-        assert "positive" in str(app.screen.query_one("#form-error", Static).render())
+        assert "numero positivo" in str(app.screen.query_one("#form-error", Static).render())
 
     run_app_test(check)
 
@@ -176,7 +176,7 @@ def test_aram_configuration_hides_position_fields_on_open():
 def test_compact_terminal_uses_single_pane_layout():
     async def check(app, _pilot):
         assert app.has_class("compact")
-        assert app.query_one("#module-panel").region.width == 80
+        assert app.query_one("#module-panel").region.width == 78
 
     run_app_test(check, size=(80, 24))
 
@@ -210,11 +210,11 @@ def test_ragequeue_arrows_move_focus_without_opening_dropdowns():
 def test_search_query_remains_visible_while_filtering():
     async def check(app, pilot):
         await pilot.press("/")
-        await pilot.press(*"status")
+        await pilot.press(*"estado")
         await pilot.pause()
 
         search_input = app.screen.query_one("#search-input", Input)
-        assert search_input.value == "status"
+        assert search_input.value == "estado"
         assert not search_input.has_class("-textual-compact")
         assert search_input.region.height == 3
 

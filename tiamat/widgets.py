@@ -16,21 +16,21 @@ class Feature:
 
 
 FEATURES = (
-    Feature(1, "AUTOMATION", "Auto Accept", "Automatically accepts ready checks when a match is found.", "toggle"),
-    Feature(2, "AUTOMATION", "Instalock", "Selects and locks your preferred champion during champion select.", "configure"),
-    Feature(3, "AUTOMATION", "AutoBan", "Automatically bans your preferred champion during champion select.", "configure"),
-    Feature(4, "AUTOMATION", "Ragequeue", "Creates your preferred lobby and resumes matchmaking after games.", "configure"),
-    Feature(5, "CUSTOMIZATION", "Profile Icon", "Changes the profile icon visible on your Riot account.", "configure"),
-    Feature(6, "CUSTOMIZATION", "Client-Only Icon", "Changes the icon shown only inside the local League Client.", "configure"),
-    Feature(7, "CUSTOMIZATION", "Profile Background", "Searches champion skins and applies one as your profile background.", "configure"),
-    Feature(8, "CUSTOMIZATION", "Riot ID", "Changes the game name and tag displayed on your Riot account.", "configure"),
-    Feature(9, "CUSTOMIZATION", "Profile Badges", "Clears, duplicates, or applies glitched profile badges.", "configure"),
-    Feature(10, "CUSTOMIZATION", "Status Message", "Updates the multiline status displayed to your friends.", "configure"),
-    Feature(11, "GAME TOOLS", "Lobby Reveal", "Opens the current champion-select lobby on Porofessor."),
-    Feature(12, "GAME TOOLS", "Dodge", "Leaves the current champion select without restarting the client.", destructive=True),
-    Feature(13, "GAME TOOLS", "Restart Client UX", "Restarts the League Client interface without closing the game.", destructive=True),
-    Feature(14, "SOCIAL", "Disconnect Chat", "Appears offline by suspending the Riot chat connection.", "toggle"),
-    Feature(15, "SOCIAL", "Remove All Friends", "Permanently removes every friend from the account.", destructive=True),
+    Feature(1, "AUTOMATIZACION", "Autoaceptar", "Acepta automaticamente la cola cuando aparece una partida.", "toggle"),
+    Feature(2, "AUTOMATIZACION", "Instalock", "Selecciona y bloquea tu campeon preferido durante la seleccion.", "configure"),
+    Feature(3, "AUTOMATIZACION", "Autoban", "Banea automaticamente el campeon configurado en seleccion.", "configure"),
+    Feature(4, "AUTOMATIZACION", "Ragequeue", "Recrea tu lobby preferido y reanuda la cola despues de cada partida.", "configure"),
+    Feature(5, "PERSONALIZACION", "Icono de Perfil", "Cambia el icono de perfil visible en tu cuenta de Riot.", "configure"),
+    Feature(6, "PERSONALIZACION", "Icono Solo Cliente", "Cambia el icono que solo se muestra dentro del cliente local.", "configure"),
+    Feature(7, "PERSONALIZACION", "Fondo de Perfil", "Busca skins y aplica una como fondo de perfil.", "configure"),
+    Feature(8, "PERSONALIZACION", "Riot ID", "Cambia el nombre y tag que se muestran en tu cuenta.", "configure"),
+    Feature(9, "PERSONALIZACION", "Insignias de Perfil", "Limpia, duplica o aplica insignias bugueadas al perfil.", "configure"),
+    Feature(10, "PERSONALIZACION", "Mensaje de Estado", "Actualiza el estado multilinea que ven tus amigos.", "configure"),
+    Feature(11, "HERRAMIENTAS", "Lobby Reveal", "Abre la lobby actual de seleccion en Porofessor."),
+    Feature(12, "HERRAMIENTAS", "Dodge", "Abandona la seleccion actual sin reiniciar el cliente.", destructive=True),
+    Feature(13, "HERRAMIENTAS", "Reiniciar Cliente UX", "Reinicia la interfaz del cliente sin cerrar la partida.", destructive=True),
+    Feature(14, "SOCIAL", "Desconectar Chat", "Te muestra offline suspendiendo la conexion del chat de Riot.", "toggle"),
+    Feature(15, "SOCIAL", "Eliminar Amigos", "Elimina permanentemente a todos los amigos de la cuenta.", destructive=True),
 )
 
 
