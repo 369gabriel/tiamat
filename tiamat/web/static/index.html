@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tiamat Web</title>
+  <link rel="stylesheet" href="/static/style.css?v=profile-16" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🐉</text></svg>" />
+</head>
+<body>
+  <!-- Header -->
+  <header id="header">
+    <div class="brand">
+      <span class="brand-icon">⬡</span>
+      <span class="brand-name">TIAMAT</span>
+      <span class="brand-sub">WEB</span>
+    </div>
+    <div id="connection-status">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Main layout -->
+  <div id="app-layout">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="panel-label">MODULES</div>
+      <nav id="feature-list"></nav>
+    </aside>
+
+    <!-- Main content -->
+    <main id="content">
+      <!-- Profile view (default) -->
+      <section id="profile-panel">
+        <div class="profile-stage">
+          <div id="profile-backdrop" class="profile-backdrop"></div>
+          <div class="profile-stage-shade"></div>
+
+          <div class="profile-toolbar">
+            <div>
+              <span class="profile-eyebrow">Overview</span>
+              <span class="profile-account-label">Summoner profile</span>
+            </div>
+            <button class="profile-background-button" type="button" onclick="openProfileBackgroundPicker()">
+              <span class="profile-edit-icon" aria-hidden="true">✦</span>
+              Change background
+            </button>
+          </div>
+
+          <aside class="profile-identity-card">
+            <div class="profile-banner-assets" aria-hidden="true">
+              <img id="profile-banner-skin" class="profile-banner-skin" src="" alt="" />
+            </div>
+            <div class="profile-level-row">
+              <strong id="profile-level" class="profile-level-badge">0</strong>
+            </div>
+
+            <button class="profile-icon-button" type="button" onclick="openProfileIconPicker()" aria-label="Change profile icon">
+              <span class="profile-icon-ornament" aria-hidden="true"></span>
+              <img id="profile-crest" class="profile-crest" src="" alt="" aria-hidden="true" />
+              <span class="profile-icon-wrapper">
+                <img id="profile-icon" src="" alt="Summoner profile icon" />
+                <span class="profile-icon-edit">Change icon</span>
+              </span>
+            </button>
+
+            <div class="profile-name-row">
+              <h1 id="profile-name">--</h1>
+              <span id="profile-riotid" class="profile-tagline">#---</span>
+            </div>
+            <p id="profile-title" class="profile-title"></p>
+            <span id="profile-region" class="profile-region"></span>
+          </aside>
+
+          <div class="profile-overview">
+            <div class="profile-section-heading">
+              <div>
+                <span>Ranked overview</span>
+                <small>Current season</small>
+              </div>
+              <span class="profile-season-label">League of Legends</span>
+            </div>
+            <div id="profile-ranked" class="profile-ranked"></div>
+          </div>
+
+          <p id="profile-hint" class="profile-hint">Select a module from the sidebar to get started</p>
+        </div>
+      </section>
+
+      <!-- Detail panel (shown when a module is selected) -->
+      <section id="detail-panel" class="hidden">
+        <button id="detail-back" class="detail-back">← Back to Profile</button>
+        <div class="detail-inner">
+          <div id="detail-header">
+            <h2 id="detail-title">Select a module</h2>
+            <span id="detail-state" class="state-badge"></span>
+          </div>
+          <p id="detail-description"></p>
+          <div id="detail-actions"></div>
+        </div>
+      </section>
+
+      <!-- Activity log -->
+      <section id="activity-panel">
+        <div class="panel-label">ACTIVITY</div>
+        <div id="activity-log"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal overlay -->
+  <div id="modal-overlay" class="hidden" onclick="closeModal()">
+    <div id="modal-content" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <script src="/static/app.js?v=profile-16"></script>
+</body>
+</html>

@@ -5,8 +5,14 @@ a = Analysis(
     ['tiamat\\main.py'],
     pathex=['tiamat'],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=[('tiamat\\web\\static', 'web\\static')],
+    hiddenimports=[
+        'uvicorn.logging',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.lifespan.on',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,5 +41,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:\\Users\\gabriel\\Documents\\tiamat.ico'],
+    icon=None,
 )
