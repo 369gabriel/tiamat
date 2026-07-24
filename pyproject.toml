@@ -10,6 +10,9 @@ dependencies = [
     "rich==14.2.0",
     "textual>=8.2.8",
     "urllib3==2.5.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "websockets>=13.0",
 ]
 
 [dependency-groups]

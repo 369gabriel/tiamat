@@ -1,8 +1,11 @@
 # Tiamat
 
-Tiamat is a keyboard-first terminal application that provides utility functions for the League of Legends client, inspired by [KbotExt](https://github.com/KebsCS/KBotExt/), by Kebs.
+Tiamat is a League of Legends client utility with a local Web interface and a
+keyboard-first Terminal UI, inspired by [KbotExt](https://github.com/KebsCS/KBotExt/),
+by Kebs.
 
-The interface opens immediately, detects the League Client in the background, and keeps module state and recent activity visible in one workspace.
+Both interfaces detect the League Client in the background and keep module
+state and recent activity visible in one workspace.
 
 ![Tiamat menu interface](https://i.imgur.com/coZgPY9.png)
 
@@ -62,6 +65,14 @@ uv sync
 uv run python tiamat/main.py
 ```
 
+At startup, choose between the Web interface and the Terminal UI. To skip the
+prompt and open a mode directly:
+
+```bash
+uv run python tiamat/main.py --web
+uv run python tiamat/main.py --terminal
+```
+
 Run tests with:
 ```bash
 uv run pytest
@@ -69,10 +80,38 @@ uv run pytest
 
 ## 💡 Usage
 
+### Interface Modes
+
+When Tiamat starts, select the Web interface or the Terminal UI from the
+launcher. You can also select a mode directly with `--web` or `--terminal`.
+
+#### Web Interface
+
+Start the Web interface and open <http://127.0.0.1:8000> in your browser:
+
+```bash
+uv run python tiamat/main.py --web
+```
+
+The Web dashboard provides access to Tiamat's modules from the sidebar. Its
+profile overview displays the current splash art, profile icon and level,
+ranked queues, honor, mastery score, title, prestige crest, and banner. Click
+the profile icon or **Change background** to customize the profile. The
+background picker includes the complete champion skin catalog.
+
+#### Terminal UI
+
+Start the keyboard-first interface directly with:
+
+```bash
+uv run python tiamat/main.py --terminal
+```
+
 ### First Time Setup
 1. Start Tiamat.
 2. Launch the League of Legends client before or after Tiamat.
-3. Select a module with the arrow keys, mouse, or its number shortcut.
+3. Select a module from the Web sidebar or use the Terminal UI's arrow keys,
+   mouse controls, or number shortcuts.
 
 ### Keyboard Shortcuts
 
