@@ -111,6 +111,8 @@ uv run pytest
 
 Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
+Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up. Role preferences are automatically hidden and skipped for ARAM and TFT modes.
+
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
 

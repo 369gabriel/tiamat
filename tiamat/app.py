@@ -546,14 +546,20 @@ class TiamatApp(App):
             self.ragequeue.second_position,
         )
         self.push_screen(
-            RagequeueScreen(queues, positions, values), self.save_ragequeue
+            RagequeueScreen(
+                queues,
+                positions,
+                values,
+                RageQueue.POSITIONLESS_QUEUE_IDS,
+            ),
+            self.save_ragequeue,
         )
 
     def save_ragequeue(self, values):
         if not values:
             return
         queue_id, first, second = values
-        if queue_id == 450:
+        if not RageQueue.requires_positions(queue_id):
             action = lambda: self.ragequeue.set_queue(queue_id)
         else:
             action = lambda: self.ragequeue.configure(queue_id, first, second)

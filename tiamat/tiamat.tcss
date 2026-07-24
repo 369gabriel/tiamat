@@ -266,7 +266,7 @@ DialogScreen {
     color: $info;
 }
 
-.aram-selected .position-field {
+.positionless-selected .position-field {
     display: none;
 }
 

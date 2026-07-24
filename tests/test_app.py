@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from textual.widgets import Button, Input, Select, Static
 
 from app import TiamatApp
@@ -217,13 +218,30 @@ def test_icon_and_riot_id_fields_use_visible_inputs():
     run_app_test(check, size=(80, 20))
 
 
-def test_aram_configuration_hides_position_fields_on_open():
+@pytest.mark.parametrize("queue_id", [450, 1090, 1100, 1130, 1160])
+def test_positionless_queue_configuration_hides_position_fields_on_open(queue_id):
     async def check(app, pilot):
         app.connected = True
-        app.ragequeue.queue_id = 450
+        app.ragequeue.queue_id = queue_id
         await pilot.press("4", "enter")
         await pilot.pause()
-        assert app.screen.has_class("aram-selected")
+        assert app.screen.has_class("positionless-selected")
+
+    run_app_test(check)
+
+
+def test_ragequeue_lists_standard_tft_modes():
+    async def check(app, pilot):
+        app.connected = True
+        await pilot.press("4", "enter")
+        await pilot.pause()
+
+        assert {
+            ("TFT Normal", 1090),
+            ("TFT Ranked", 1100),
+            ("TFT Hyper Roll", 1130),
+            ("TFT Double Up", 1160),
+        }.issubset(set(app.screen.queue_options))
 
     run_app_test(check)
 

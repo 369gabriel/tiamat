@@ -67,6 +67,53 @@ def test_selecting_queue_enables_and_saves_ragequeue(monkeypatch):
     assert saved_configs == [config]
 
 
+@pytest.mark.parametrize(
+    ("queue_id", "queue_name"),
+    [
+        (1090, "TFT Normal"),
+        (1100, "TFT Ranked"),
+        (1130, "TFT Hyper Roll"),
+        (1160, "TFT Double Up"),
+    ],
+)
+def test_tft_queue_modes_are_supported(queue_id, queue_name, monkeypatch):
+    ragequeue = RageQueue(
+        {"ragequeue": {"enabled": False, "queue_id": 420}}
+    )
+    monkeypatch.setattr(ragequeue_module, "save_config", lambda _config: None)
+
+    ragequeue.set_queue(queue_id)
+
+    assert ragequeue.queue_name == queue_name
+    assert ragequeue.positions_name == "Not used"
+
+
+def test_tft_queue_does_not_send_position_preferences():
+    ragequeue = RageQueue(
+        {
+            "ragequeue": {
+                "enabled": True,
+                "queue_id": 1100,
+                "first_position": "TOP",
+                "second_position": "JUNGLE",
+            }
+        }
+    )
+    calls = []
+
+    def fake_lcu_request(method, endpoint, body):
+        calls.append((method, endpoint, body))
+        return FakeResponse(status_code=200)
+
+    ragequeue.rengar.lcu_request = fake_lcu_request
+    ragequeue.start_queue()
+
+    assert calls == [
+        ("POST", "/lol-lobby/v2/lobby", {"queueId": 1100}),
+        ("POST", "/lol-lobby/v2/lobby/matchmaking/search", ""),
+    ]
+
+
 def test_configure_saves_queue_and_both_positions(monkeypatch):
     config = {"ragequeue": {"enabled": False, "queue_id": 420}}
     ragequeue = RageQueue(config)

@@ -12,6 +12,10 @@ class RageQueue:
         4: ("ARAM", 450),
         5: ("Swiftplay", 480),
         6: ("Quickplay", 490),
+        7: ("TFT Normal", 1090),
+        8: ("TFT Ranked", 1100),
+        9: ("TFT Hyper Roll", 1130),
+        10: ("TFT Double Up", 1160),
     }
     POSITION_TYPES = {
         1: ("Top", "TOP"),
@@ -22,6 +26,7 @@ class RageQueue:
         6: ("Fill", "FILL"),
     }
     DEFAULT_QUEUE_ID = 420
+    POSITIONLESS_QUEUE_IDS = {450, 1090, 1100, 1130, 1160}
 
     def __init__(self, config=None, on_event=None):
         self.config = config if config is not None else load_config()
@@ -61,12 +66,18 @@ class RageQueue:
 
     @property
     def positions_name(self):
+        if not self.requires_positions(self.queue_id):
+            return "Not used"
         if not self.first_position or not self.second_position:
             return "Not configured"
         return (
             f"{self.position_names[self.first_position]} / "
             f"{self.position_names[self.second_position]}"
         )
+
+    @classmethod
+    def requires_positions(cls, queue_id):
+        return queue_id not in cls.POSITIONLESS_QUEUE_IDS
 
     def set_queue(self, queue_id):
         if queue_id not in self.queue_names:
@@ -137,11 +148,9 @@ class RageQueue:
         self._ensure_success(search_response, "start matchmaking")
 
     def apply_positions_if_unset(self):
-        if (
-            self.queue_id == 450
-            or not self.first_position
-            or not self.second_position
-        ):
+        if not self.requires_positions(self.queue_id):
+            return
+        if not self.first_position or not self.second_position:
             return
 
         lobby_response = self.rengar.lcu_request(

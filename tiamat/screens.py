@@ -145,11 +145,12 @@ class InputFormScreen(DialogScreen):
 
 
 class RagequeueScreen(DialogScreen):
-    def __init__(self, queue_options, position_options, values):
+    def __init__(self, queue_options, position_options, values, positionless_queue_ids):
         super().__init__()
         self.queue_options = queue_options
         self.position_options = position_options
         self.values = values
+        self.positionless_queue_ids = positionless_queue_ids
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog form-dialog"):
@@ -195,11 +196,17 @@ class RagequeueScreen(DialogScreen):
                 )
 
     def on_mount(self):
-        self.set_class(self.values[0] == 450, "aram-selected")
+        self.set_class(
+            self.values[0] in self.positionless_queue_ids,
+            "positionless-selected",
+        )
 
     def on_select_changed(self, event):
         if event.select.id == "queue":
-            self.set_class(event.value == 450, "aram-selected")
+            self.set_class(
+                event.value in self.positionless_queue_ids,
+                "positionless-selected",
+            )
 
     def on_button_pressed(self, event):
         if event.button.id == "cancel":
