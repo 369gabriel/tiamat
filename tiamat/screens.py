@@ -293,11 +293,12 @@ class StatusScreen(DialogScreen):
 
 
 class SearchScreen(DialogScreen):
-    def __init__(self, title, description, choices):
+    def __init__(self, title, description, choices, loading_message=""):
         super().__init__()
         self.dialog_title = title
         self.description = description
         self.choices = choices
+        self.loading_message = loading_message
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog search-dialog"):
@@ -306,6 +307,11 @@ class SearchScreen(DialogScreen):
             yield Input(
                 placeholder="Type to filter",
                 id="search-input",
+            )
+            yield Static(
+                self.loading_message,
+                id="search-status",
+                classes="search-status",
             )
             yield OptionList(id="search-results", compact=True)
             with Horizontal(classes="dialog-actions"):
@@ -317,6 +323,14 @@ class SearchScreen(DialogScreen):
 
     def on_input_changed(self, event):
         self.update_options(event.value)
+
+    def set_choices(self, choices):
+        self.choices = choices
+        self.query_one("#search-status", Static).update("")
+        self.update_options(self.query_one(Input).value)
+
+    def set_error(self, error):
+        self.query_one("#search-status", Static).update(f"Could not load: {error}")
 
     def update_options(self, query):
         query = query.strip().lower()

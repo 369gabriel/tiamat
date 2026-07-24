@@ -3,7 +3,7 @@ import asyncio
 from textual.widgets import Button, Input, Select, Static
 
 from app import TiamatApp
-from screens import StatusScreen
+from screens import SearchScreen, StatusScreen
 from widgets import FeatureItem
 
 
@@ -84,6 +84,61 @@ def test_multi_digit_shortcut_opens_matching_module():
         await pilot.press("1", "0", "enter")
         await pilot.pause()
         assert isinstance(app.screen, StatusScreen)
+
+    run_app_test(check)
+
+
+def test_numeric_shortcut_does_not_also_run_list_selection():
+    async def check(app, pilot):
+        app.connected = True
+        activated = []
+        app.activate_feature = activated.append
+        app.select_feature(11)
+
+        await pilot.press("1", "1", "enter")
+        await pilot.pause()
+
+        assert activated == [11]
+
+    run_app_test(check)
+
+
+def test_background_screen_opens_before_skins_finish_loading():
+    async def check(app, pilot):
+        app.connected = True
+        action = {}
+
+        def capture_action(
+            description,
+            worker,
+            success_message,
+            on_success=None,
+            on_error=None,
+        ):
+            action.update(
+                description=description,
+                worker=worker,
+                success_message=success_message,
+                on_success=on_success,
+                on_error=on_error,
+            )
+
+        app.run_feature_action = capture_action
+        await pilot.press("7", "enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, SearchScreen)
+        assert "Loading skins" in str(
+            app.screen.query_one("#search-status", Static).render()
+        )
+        assert action["description"] == "Loading skins"
+
+        action["on_success"](
+            [{"champion": "Ahri", "name": "Default", "id": "103000"}]
+        )
+        await pilot.pause()
+        assert app.screen.query_one("#search-results").option_count == 1
+        assert str(app.screen.query_one("#search-status", Static).render()) == ""
 
     run_app_test(check)
 

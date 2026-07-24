@@ -261,6 +261,11 @@ DialogScreen {
     margin-top: 1;
 }
 
+.search-status {
+    height: 1;
+    color: $info;
+}
+
 .aram-selected .position-field {
     display: none;
 }

@@ -365,6 +365,8 @@ class TiamatApp(App):
             self.exit()
 
     def append_shortcut(self, digit):
+        if not self.shortcut_buffer:
+            self.query_one("#feature-list", ListView).blur()
         valid_commands = [str(number) for number in range(1, 16)] + ["99"]
         candidate = self.shortcut_buffer + digit
         if not any(command.startswith(candidate) for command in valid_commands):
@@ -400,7 +402,14 @@ class TiamatApp(App):
         self.notify("League Client is not connected", severity="warning")
         return False
 
-    def run_feature_action(self, description, action, success_message, on_success=None):
+    def run_feature_action(
+        self,
+        description,
+        action,
+        success_message,
+        on_success=None,
+        on_error=None,
+    ):
         if not self.require_connection():
             return
         self.add_activity("info", description)
@@ -409,7 +418,9 @@ class TiamatApp(App):
             try:
                 result = action()
             except Exception as error:
-                self.call_from_thread(self.action_failed, description, error)
+                self.call_from_thread(
+                    self.action_failed, description, error, on_error
+                )
             else:
                 self.call_from_thread(
                     self.action_succeeded,
@@ -426,9 +437,11 @@ class TiamatApp(App):
             exit_on_error=False,
         )
 
-    def action_failed(self, description, error):
+    def action_failed(self, description, error, on_error=None):
         self.add_activity("error", f"{description}: {error}")
         self.notify(str(error), title=description, severity="error")
+        if on_error:
+            on_error(error)
 
     def action_succeeded(self, result, success_message, on_success):
         message = success_message(result) if callable(success_message) else success_message
@@ -586,21 +599,29 @@ class TiamatApp(App):
         )
 
     def open_background_search(self):
+        screen = SearchScreen(
+            "Profile Background",
+            "Search by champion or skin name.",
+            [],
+            loading_message="Loading skins...",
+        )
+        self.push_screen(screen, self.save_background)
+
         def show_skins(skins):
             choices = [
                 (f"{skin['champion']} - {skin['name']}  [{skin['id']}]", skin)
                 for skin in skins
             ]
-            self.push_screen(
-                SearchScreen(
-                    "Profile Background",
-                    "Search by champion or skin name.",
-                    choices,
-                ),
-                self.save_background,
-            )
+            if screen.is_mounted:
+                screen.set_choices(choices)
 
-        self.run_feature_action("Loading skins", fetch_all_champion_skins, "", show_skins)
+        self.run_feature_action(
+            "Loading skins",
+            fetch_all_champion_skins,
+            "",
+            show_skins,
+            lambda error: screen.set_error(error) if screen.is_mounted else None,
+        )
 
     def save_background(self, skin):
         if not skin:
