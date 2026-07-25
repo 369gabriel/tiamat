@@ -56,3 +56,25 @@ def test_accept_match_rejects_failed_response():
 
     with pytest.raises(RuntimeError, match="HTTP 500"):
         auto_accept.accept_match()
+
+
+def test_auto_accept_waits_for_configured_delay(monkeypatch):
+    auto_accept = AutoAccept(
+        {"auto_accept": {"enabled": True, "delay_seconds": 0.4}}
+    )
+    auto_accept.rengar.lcu_request = lambda method, _endpoint, _body: (
+        FakeResponse() if method == "GET" else FakeResponse()
+    )
+    sleeps = []
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        if seconds == 0.5:
+            raise StopMonitor
+
+    monkeypatch.setattr(auto_accept_module.time, "sleep", fake_sleep)
+
+    with pytest.raises(StopMonitor):
+        auto_accept.monitor_queue()
+
+    assert sleeps == [0.4, 0.5]

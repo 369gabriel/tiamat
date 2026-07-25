@@ -1,5 +1,5 @@
 import time
-from Config import load_config, save_config
+from Config import get_automation_delay, load_config, save_config
 from Rengar import Rengar
 
 
@@ -39,6 +39,11 @@ class AutoAccept:
                         match_data = response.json()
 
                         if match_data.get("searchState") == "Found":
+                            delay = get_automation_delay(
+                                self.config, "auto_accept", 0.0
+                            )
+                            if delay:
+                                time.sleep(delay)
                             self.accept_match()
                 except Exception as error:
                     self.on_event("error", f"Auto Accept monitor: {error}")

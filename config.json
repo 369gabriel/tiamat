@@ -1,14 +1,20 @@
 {
     "instalock": {
         "enabled": false,
-        "champion": "Random"
+        "champion": "Random",
+        "delay_seconds": 0.3
     },
     "autoban": {
         "enabled": false,
-        "champion": "None"
+        "champion": "None",
+        "delay_seconds": 0.3
     },
     "auto_accept": {
-        "enabled": false
+        "enabled": false,
+        "delay_seconds": 0.0
+    },
+    "lobby_reveal": {
+        "provider": "ugg"
     },
     "ragequeue": {
         "enabled": false,

@@ -1,6 +1,6 @@
 import time
 import random
-from Config import load_config, save_config
+from Config import get_automation_delay, load_config, save_config
 from Rengar import Rengar
 
 
@@ -97,7 +97,11 @@ class InstalockAutoban:
                                 and action["type"] == "pick"
                                 and not action["completed"]
                             ):
-                                time.sleep(0.3)
+                                delay = get_automation_delay(
+                                    self.config, "instalock", 0.3
+                                )
+                                if delay:
+                                    time.sleep(delay)
 
                                 if self.instalock_champion == "Random":
                                     champion_id = random.choice(list(self.champ_dict.items()))[1]
@@ -126,7 +130,11 @@ class InstalockAutoban:
                                 and action["type"] == "ban"
                                 and not action["completed"]
                             ):
-                                time.sleep(0.3)
+                                delay = get_automation_delay(
+                                    self.config, "autoban", 0.3
+                                )
+                                if delay:
+                                    time.sleep(delay)
                                 champion_id = self.champ_name_to_id(self.auto_ban_champion)
 
                                 response = self.rengar.lcu_request(

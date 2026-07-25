@@ -82,7 +82,7 @@ uv run pytest
 | `Enter` | Open or run the selected module |
 | `Space` | Toggle the selected automation |
 | `/` | Search modules |
-| `1` through `15`, then `Enter` | Open or run a module directly |
+| `1` through `16`, then `Enter` | Open or run a module directly |
 | `99`, then `Enter` or `q` | Exit |
 | `Esc` | Close a form or confirmation |
 | Left click | Open or run a module |
@@ -108,10 +108,13 @@ uv run pytest
 | `13` | Game Tools | Restart Client UX |
 | `14` | Social | Disconnect Chat |
 | `15` | Social | Remove All Friends |
+| `16` | Settings | Configuration |
 
 Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
 Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up. Role preferences are automatically hidden and skipped for ARAM and TFT modes.
+
+Configuration supports Porofessor, OP.GG, and U.GG for Lobby Reveal, plus independent `0-2s` delays for Auto Accept, Instalock, and AutoBan.
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.

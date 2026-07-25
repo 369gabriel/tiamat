@@ -3,8 +3,9 @@ import asyncio
 import pytest
 from textual.widgets import Button, Input, Select, Static
 
+import app as app_module
 from app import TiamatApp
-from screens import SearchScreen, StatusScreen
+from screens import DelayStepper, SearchScreen, SettingsScreen, StatusScreen
 from widgets import FeatureItem
 
 
@@ -21,9 +22,10 @@ def run_app_test(test, size=(120, 40)):
 def test_app_mounts_grouped_numbered_interface():
     async def check(app, _pilot):
         assert str(app.query_one("#brand", Static).render()) == "tiamat"
-        assert len(app.query(FeatureItem)) == 15
+        assert len(app.query(FeatureItem)) == 16
         assert app.query_one("#feature-1", FeatureItem).feature.title == "Auto Accept"
         assert app.query_one("#feature-15", FeatureItem).feature.title == "Remove All Friends"
+        assert app.query_one("#feature-16", FeatureItem).feature.title == "Configuration"
         assert "League Client not detected" in str(
             app.query_one("#connection", Static).render()
         )
@@ -87,6 +89,76 @@ def test_multi_digit_shortcut_opens_matching_module():
         assert isinstance(app.screen, StatusScreen)
 
     run_app_test(check)
+
+
+def test_settings_open_without_league_and_save_live(monkeypatch):
+    saved = []
+    monkeypatch.setattr(
+        app_module,
+        "save_config",
+        lambda config: saved.append(config.copy()),
+    )
+
+    async def check(app, pilot):
+        assert not app.connected
+        await pilot.press("1", "6", "enter")
+        await pilot.pause()
+
+        assert isinstance(app.screen, SettingsScreen)
+        provider = app.screen.query_one("#reveal-provider", Select)
+        assert provider.value == "porofessor"
+        assert provider.region.height == 3
+        assert "Porofessor" in app.export_screenshot()
+        auto_accept = app.screen.query_one("#auto-accept-delay", DelayStepper)
+        instalock = app.screen.query_one("#instalock-delay", DelayStepper)
+        autoban = app.screen.query_one("#autoban-delay", DelayStepper)
+        auto_accept.value = 0.4
+        instalock.value = 0.8
+        autoban.value = 1.2
+        app.screen.query_one("#reveal-provider", Select).value = "opgg"
+
+        app.screen.query_one("#submit", Button).focus()
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert len(app.screen_stack) == 1
+        assert app.config["lobby_reveal"]["provider"] == "opgg"
+        assert app.config["auto_accept"]["delay_seconds"] == 0.4
+        assert app.config["instalock"]["delay_seconds"] == 0.8
+        assert app.config["autoban"]["delay_seconds"] == 1.2
+        assert saved
+
+    run_app_test(check, size=(80, 20))
+
+
+def test_settings_steppers_clamp_and_reset_defaults():
+    async def check(app, pilot):
+        await pilot.press("1", "6", "enter")
+        await pilot.pause()
+
+        auto_accept = app.screen.query_one("#auto-accept-delay", DelayStepper)
+        auto_accept.value = 2.0
+        auto_accept.focus()
+        await pilot.press("right")
+        assert auto_accept.value == 2.0
+        await pilot.press("home")
+        assert auto_accept.value == 0.0
+        await pilot.press("right")
+        assert auto_accept.value == 0.1
+        await pilot.click(auto_accept, offset=(12, 0))
+        assert auto_accept.value == 0.2
+        await pilot.click(auto_accept, offset=(1, 0))
+        assert auto_accept.value == 0.1
+
+        app.screen.query_one("#reset", Button).focus()
+        await pilot.press("enter")
+        assert auto_accept.value == 0.0
+        assert app.screen.query_one("#instalock-delay", DelayStepper).value == 0.3
+        assert app.screen.query_one("#autoban-delay", DelayStepper).value == 0.3
+        assert app.screen.query_one("#reveal-provider", Select).value == "porofessor"
+        assert app.screen.query_one(".dialog").region.bottom <= 20
+
+    run_app_test(check, size=(80, 20))
 
 
 def test_numeric_shortcut_does_not_also_run_list_selection():

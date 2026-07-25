@@ -10,7 +10,7 @@ from textual.widgets import Label, ListView, RichLog, Static
 from AutoAccept import AutoAccept
 from Backgrounds import change_profile_background, fetch_all_champion_skins
 from Badges import change_profile_badges
-from Config import load_config
+from Config import get_automation_delay, load_config, save_config
 from disconnect_reconnect_chat import Chat
 from Dodge import dodge
 from Icons import change_profile_icon
@@ -20,7 +20,7 @@ from RageQueue import RageQueue
 from RemoveFriends import get_friends, remove_all_friends
 from Rengar import Rengar, find_league_client_credentials
 from RestartUX import restart
-from Reveal import reveal
+from Reveal import REVEAL_PROVIDERS, reveal
 from Riotidchanger import change_riotid
 from screens import (
     BadgeScreen,
@@ -28,6 +28,7 @@ from screens import (
     InputFormScreen,
     RagequeueScreen,
     SearchScreen,
+    SettingsScreen,
     StatusScreen,
 )
 from StatusChanger import change_status
@@ -253,6 +254,11 @@ class TiamatApp(App):
             return self.ragequeue.queue_name if self.ragequeue.enabled else "OFF"
         if number == 14:
             return self.chat.return_state() if self.chat else "--"
+        if number == 16:
+            provider = self.config.get("lobby_reveal", {}).get(
+                "provider", "porofessor"
+            )
+            return REVEAL_PROVIDERS.get(provider, "Porofessor")
         return ""
 
     def refresh_feature_states(self):
@@ -273,7 +279,12 @@ class TiamatApp(App):
 
         state = self.feature_state(number)
         state_text = state or "Ready"
-        connected_text = "available" if self.connected else "waiting for League Client"
+        if number == 16:
+            connected_text = "not required"
+        else:
+            connected_text = (
+                "available" if self.connected else "waiting for League Client"
+            )
         meta = f"STATUS\n{state_text}\n\nCLIENT\n{connected_text}"
         self.query_one("#detail-meta", Static).update(meta)
 
@@ -327,7 +338,7 @@ class TiamatApp(App):
             event.stop()
             number = int(self.shortcut_buffer)
             self.clear_shortcut()
-            if 1 <= number <= 15:
+            if 1 <= number <= 16:
                 self.select_feature(number)
                 self.activate_feature(number)
             elif number == 99:
@@ -367,7 +378,7 @@ class TiamatApp(App):
     def append_shortcut(self, digit):
         if not self.shortcut_buffer:
             self.query_one("#feature-list", ListView).blur()
-        valid_commands = [str(number) for number in range(1, 16)] + ["99"]
+        valid_commands = [str(number) for number in range(1, 17)] + ["99"]
         candidate = self.shortcut_buffer + digit
         if not any(command.startswith(candidate) for command in valid_commands):
             candidate = digit
@@ -453,7 +464,7 @@ class TiamatApp(App):
         self.refresh_feature_states()
 
     def activate_feature(self, number):
-        if not self.require_connection():
+        if number != 16 and not self.require_connection():
             return
         actions = {
             1: self.toggle_auto_accept,
@@ -471,10 +482,13 @@ class TiamatApp(App):
             13: self.confirm_restart,
             14: self.toggle_chat,
             15: self.prepare_remove_friends,
+            16: self.open_settings,
         }
         actions[number]()
 
     def toggle_feature(self, number):
+        if number == 16:
+            return
         if not self.require_connection():
             return
         if number == 1:
@@ -709,7 +723,54 @@ class TiamatApp(App):
         )
 
     def run_lobby_reveal(self):
-        self.run_feature_action("Revealing lobby", reveal, "Lobby opened in your browser")
+        provider = self.config.get("lobby_reveal", {}).get(
+            "provider", "porofessor"
+        )
+        if provider not in REVEAL_PROVIDERS:
+            provider = "porofessor"
+        self.run_feature_action(
+            "Revealing lobby",
+            lambda: reveal(provider=provider),
+            f"Lobby opened with {REVEAL_PROVIDERS.get(provider, 'Porofessor')}",
+        )
+
+    def open_settings(self):
+        provider = self.config.get("lobby_reveal", {}).get(
+            "provider", "porofessor"
+        )
+        if provider not in REVEAL_PROVIDERS:
+            provider = "porofessor"
+        delays = {
+            "auto_accept": get_automation_delay(
+                self.config, "auto_accept", 0.0
+            ),
+            "instalock": get_automation_delay(self.config, "instalock", 0.3),
+            "autoban": get_automation_delay(self.config, "autoban", 0.3),
+        }
+        self.push_screen(
+            SettingsScreen(provider, delays),
+            self.save_settings,
+        )
+
+    def save_settings(self, settings):
+        if not settings:
+            return
+        self.config.setdefault("lobby_reveal", {})["provider"] = settings[
+            "provider"
+        ]
+        self.config.setdefault("auto_accept", {})["delay_seconds"] = settings[
+            "auto_accept_delay"
+        ]
+        self.config.setdefault("instalock", {})["delay_seconds"] = settings[
+            "instalock_delay"
+        ]
+        self.config.setdefault("autoban", {})["delay_seconds"] = settings[
+            "autoban_delay"
+        ]
+        save_config(self.config)
+        self.add_activity("success", "Configuration saved")
+        self.notify("Configuration saved")
+        self.refresh_feature_states()
 
     def confirm_dodge(self):
         self.push_screen(

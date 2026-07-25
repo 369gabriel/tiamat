@@ -196,7 +196,6 @@ DialogScreen {
 }
 
 .dialog Input,
-.dialog Select,
 .dialog TextArea,
 .dialog OptionList {
     background: $background;
@@ -215,9 +214,23 @@ DialogScreen {
 }
 
 .dialog Input:focus,
-.dialog Select:focus,
 .dialog TextArea:focus,
 .dialog OptionList:focus {
+    border: solid $accent;
+}
+
+.dialog Select {
+    background: transparent;
+    color: $text;
+}
+
+.dialog Select > SelectCurrent {
+    background: $background;
+    color: $text;
+    border: solid $border;
+}
+
+.dialog Select:focus > SelectCurrent {
     border: solid $accent;
 }
 
@@ -264,6 +277,54 @@ DialogScreen {
 .search-status {
     height: 1;
     color: $info;
+}
+
+.settings-dialog {
+    width: 54;
+}
+
+.settings-section {
+    height: 1;
+    margin-top: 1;
+    color: $muted;
+    text-style: bold;
+}
+
+.setting-row {
+    height: 1;
+}
+
+.provider-row {
+    height: 3;
+}
+
+.provider-row .setting-name {
+    content-align: left middle;
+}
+
+.setting-name {
+    width: 1fr;
+}
+
+.setting-row Select {
+    width: 22;
+}
+
+.delay-stepper {
+    width: 14;
+    height: 1;
+    color: $text;
+    text-align: center;
+}
+
+.delay-stepper:hover {
+    background: $elevated;
+}
+
+.delay-stepper:focus {
+    background: $elevated;
+    color: $accent;
+    text-style: bold;
 }
 
 .positionless-selected .position-field {

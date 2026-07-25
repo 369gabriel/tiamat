@@ -1,9 +1,53 @@
 import webbrowser
+from urllib.parse import quote
 
 from Rengar import Rengar
 
 
-def reveal(rengar=None, open_browser=True):
+REVEAL_PROVIDERS = {
+    "porofessor": "Porofessor",
+    "opgg": "OP.GG",
+    "ugg": "U.GG",
+}
+
+UGG_REGIONS = {
+    "br": "br1",
+    "eune": "eun1",
+    "euw": "euw1",
+    "jp": "jp1",
+    "kr": "kr",
+    "lan": "la1",
+    "las": "la2",
+    "na": "na1",
+    "oce": "oc1",
+    "ru": "ru",
+    "tr": "tr1",
+    "ph": "ph2",
+    "sg": "sg2",
+    "th": "th2",
+    "tw": "tw2",
+    "vn": "vn2",
+}
+
+
+def build_reveal_url(provider, region, summoner_names):
+    if provider not in REVEAL_PROVIDERS:
+        raise ValueError("Unsupported Lobby Reveal provider")
+
+    region = region.lower()
+    players = quote(",".join(summoner_names), safe=",")
+    if provider == "porofessor":
+        return (
+            f"https://porofessor.gg/pregame/{region}/{players}/soloqueue/season"
+        )
+    if provider == "opgg":
+        return f"https://www.op.gg/multisearch/{region}?summoners={players}"
+
+    ugg_region = UGG_REGIONS.get(region, region)
+    return f"https://u.gg/multisearch?summoners={players}&region={ugg_region}"
+
+
+def reveal(provider="porofessor", rengar=None, open_browser=True):
     api = rengar or Rengar()
     champ_select = api.lcu_request("GET", "/lol-champ-select/v1/session", "")
     if champ_select.status_code != 200 or "RPC_ERROR" in champ_select.text:
@@ -21,7 +65,7 @@ def reveal(rengar=None, open_browser=True):
         for participant in participants.json().get("participants", []):
             if "champ-select" in participant.get("cid", ""):
                 summoner_names.append(
-                    f"{participant['game_name']}%23{participant['game_tag']}"
+                    f"{participant['game_name']}#{participant['game_tag']}"
                 )
     else:
         for player in session.get("myTeam", []):
@@ -34,18 +78,19 @@ def reveal(rengar=None, open_browser=True):
             if response.status_code == 200:
                 summoner = response.json()
                 summoner_names.append(
-                    f"{summoner['gameName']}%23{summoner['tagLine']}"
+                    f"{summoner['gameName']}#{summoner['tagLine']}"
                 )
 
     region_response = api.lcu_request("GET", "/riotclient/region-locale", "")
-    region = region_response.json().get("webRegion", "") if region_response.status_code == 200 else ""
+    region = (
+        region_response.json().get("webRegion", "")
+        if region_response.status_code == 200
+        else ""
+    )
     if not region or not summoner_names:
         raise RuntimeError("Could not read the lobby region or summoner names")
 
-    url = (
-        f"https://porofessor.gg/pregame/{region}/"
-        f"{','.join(summoner_names)}/soloqueue/season"
-    )
+    url = build_reveal_url(provider, region, summoner_names)
     if open_browser:
         webbrowser.open(url)
     return url

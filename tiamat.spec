@@ -5,7 +5,7 @@ a = Analysis(
     ['tiamat\\main.py'],
     pathex=['tiamat'],
     binaries=[],
-    datas=[],
+    datas=[('tiamat\\tiamat.tcss', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

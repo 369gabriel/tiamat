@@ -19,13 +19,19 @@ DEFAULT_CONFIG = {
     "instalock": {
         "enabled": False,
         "champion": "Random",
+        "delay_seconds": 0.3,
     },
     "autoban": {
         "enabled": False,
         "champion": "None",
+        "delay_seconds": 0.3,
     },
     "auto_accept": {
         "enabled": False,
+        "delay_seconds": 0.0,
+    },
+    "lobby_reveal": {
+        "provider": "porofessor",
     },
     "ragequeue": {
         "enabled": False,
@@ -34,6 +40,17 @@ DEFAULT_CONFIG = {
         "second_position": None,
     },
 }
+
+MIN_AUTOMATION_DELAY = 0.0
+MAX_AUTOMATION_DELAY = 2.0
+
+
+def get_automation_delay(config, section, default):
+    try:
+        value = float(config.get(section, {}).get("delay_seconds", default))
+    except (TypeError, ValueError):
+        value = default
+    return round(min(MAX_AUTOMATION_DELAY, max(MIN_AUTOMATION_DELAY, value)), 1)
 
 
 def _merge_defaults(config, defaults):

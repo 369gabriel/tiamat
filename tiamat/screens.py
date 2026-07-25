@@ -1,6 +1,7 @@
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList, Select, Static, TextArea
 from textual.widgets.option_list import Option
@@ -8,6 +9,50 @@ from textual.widgets.option_list import Option
 
 class EnterSelect(Select, inherit_bindings=False):
     BINDINGS = [Binding("enter", "show_overlay", "Show menu", show=False)]
+
+
+class DelayStepper(Static, can_focus=True):
+    BINDINGS = [
+        Binding("left", "decrease", "Decrease", show=False),
+        Binding("right", "increase", "Increase", show=False),
+        Binding("home", "minimum", "Minimum", show=False),
+        Binding("end", "maximum", "Maximum", show=False),
+    ]
+    value = reactive(0.0)
+
+    def __init__(self, value, id):
+        super().__init__(id=id, classes="delay-stepper")
+        self.value = self.clamp(value)
+
+    @staticmethod
+    def clamp(value):
+        return round(min(2.0, max(0.0, float(value))), 1)
+
+    def validate_value(self, value):
+        return self.clamp(value)
+
+    def watch_value(self, value):
+        self.update(f"<  {value:.1f}s  >")
+
+    def action_decrease(self):
+        self.value = self.clamp(self.value - 0.1)
+
+    def action_increase(self):
+        self.value = self.clamp(self.value + 0.1)
+
+    def action_minimum(self):
+        self.value = 0.0
+
+    def action_maximum(self):
+        self.value = 2.0
+
+    def on_click(self, event):
+        event.stop()
+        self.focus()
+        if event.x < self.size.width / 2:
+            self.action_decrease()
+        else:
+            self.action_increase()
 
 
 class DialogScreen(ModalScreen):
@@ -30,7 +75,9 @@ class DialogScreen(ModalScreen):
         if event.key == "up" and isinstance(self.focused, Button):
             fields = [
                 field
-                for field in self.query("Input, Select, TextArea, OptionList")
+                for field in self.query(
+                    "Input, Select, TextArea, OptionList, DelayStepper"
+                )
                 if field.display and not field.disabled
             ]
             if fields:
@@ -41,6 +88,7 @@ class DialogScreen(ModalScreen):
         focused = self.focused
         if event.key in {"down", "up"} and (
             isinstance(focused, Input)
+            or isinstance(focused, DelayStepper)
             or (
                 isinstance(focused, EnterSelect)
                 and not focused.expanded
@@ -52,11 +100,93 @@ class DialogScreen(ModalScreen):
             else:
                 fields = [
                     field
-                    for field in self.query("Input, Select, TextArea, OptionList")
+                    for field in self.query(
+                        "Input, Select, TextArea, OptionList, DelayStepper"
+                    )
                     if field.display and not field.disabled
                 ]
                 if fields and focused is not fields[0]:
                     self.focus_previous()
+
+
+class SettingsScreen(DialogScreen):
+    PROVIDERS = (
+        ("Porofessor", "porofessor"),
+        ("OP.GG", "opgg"),
+        ("U.GG", "ugg"),
+    )
+    DEFAULT_DELAYS = {
+        "auto-accept-delay": 0.0,
+        "instalock-delay": 0.3,
+        "autoban-delay": 0.3,
+    }
+
+    def __init__(self, provider, delays):
+        super().__init__()
+        self.provider = provider
+        self.delays = delays
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="dialog settings-dialog"):
+            yield Label("Configuration", classes="dialog-title")
+            yield Label("LOBBY REVEAL", classes="settings-section")
+            with Horizontal(classes="setting-row provider-row"):
+                yield Label("Website", classes="setting-name")
+                yield EnterSelect(
+                    self.PROVIDERS,
+                    value=self.provider,
+                    allow_blank=False,
+                    id="reveal-provider",
+                    classes="provider-select",
+                )
+            yield Label("AUTOMATION DELAYS", classes="settings-section")
+            with Horizontal(classes="setting-row"):
+                yield Label("Auto Accept", classes="setting-name")
+                yield DelayStepper(
+                    self.delays["auto_accept"], id="auto-accept-delay"
+                )
+            with Horizontal(classes="setting-row"):
+                yield Label("Instalock", classes="setting-name")
+                yield DelayStepper(
+                    self.delays["instalock"], id="instalock-delay"
+                )
+            with Horizontal(classes="setting-row"):
+                yield Label("AutoBan", classes="setting-name")
+                yield DelayStepper(
+                    self.delays["autoban"], id="autoban-delay"
+                )
+            with Horizontal(classes="dialog-actions"):
+                yield Button("Reset", id="reset", compact=True)
+                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Save", id="submit", variant="primary", compact=True)
+
+    def on_mount(self):
+        self.query_one("#reveal-provider", Select).focus()
+
+    def on_button_pressed(self, event):
+        if event.button.id == "cancel":
+            self.dismiss(None)
+            return
+        if event.button.id == "reset":
+            self.query_one("#reveal-provider", Select).value = "porofessor"
+            for stepper_id, value in self.DEFAULT_DELAYS.items():
+                self.query_one(f"#{stepper_id}", DelayStepper).value = value
+            self.query_one("#reveal-provider", Select).focus()
+            return
+        self.dismiss(
+            {
+                "provider": self.query_one("#reveal-provider", Select).value,
+                "auto_accept_delay": self.query_one(
+                    "#auto-accept-delay", DelayStepper
+                ).value,
+                "instalock_delay": self.query_one(
+                    "#instalock-delay", DelayStepper
+                ).value,
+                "autoban_delay": self.query_one(
+                    "#autoban-delay", DelayStepper
+                ).value,
+            }
+        )
 
 
 class ConfirmScreen(DialogScreen):

@@ -18,3 +18,15 @@ def test_concurrent_config_saves_remain_valid_json(monkeypatch, tmp_path):
     saved = json.loads(config_path.read_text(encoding="utf-8"))
     assert saved in configs
     assert not config_path.with_suffix(".json.tmp").exists()
+
+
+def test_automation_delays_are_clamped_to_safe_range():
+    config = {
+        "auto_accept": {"delay_seconds": -5},
+        "instalock": {"delay_seconds": 1.26},
+        "autoban": {"delay_seconds": 99},
+    }
+
+    assert config_module.get_automation_delay(config, "auto_accept", 0.0) == 0.0
+    assert config_module.get_automation_delay(config, "instalock", 0.3) == 1.3
+    assert config_module.get_automation_delay(config, "autoban", 0.3) == 2.0
