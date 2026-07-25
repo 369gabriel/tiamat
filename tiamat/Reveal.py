@@ -35,16 +35,24 @@ def build_reveal_url(provider, region, summoner_names):
         raise ValueError("Unsupported Lobby Reveal provider")
 
     region = region.lower()
-    players = quote(",".join(summoner_names), safe=",")
     if provider == "porofessor":
+        players = quote(",".join(summoner_names), safe=",")
         return (
             f"https://porofessor.gg/pregame/{region}/{players}/soloqueue/season"
         )
     if provider == "opgg":
+        players = quote(",".join(summoner_names), safe=",")
         return f"https://www.op.gg/multisearch/{region}?summoners={players}"
 
+    ugg_names = []
+    for riot_id in summoner_names:
+        game_name, separator, tag_line = riot_id.rpartition("#")
+        ugg_names.append(
+            f"{game_name}-{tag_line}" if separator else riot_id
+        )
+    players = quote(",".join(ugg_names), safe=",")
     ugg_region = UGG_REGIONS.get(region, region)
-    return f"https://u.gg/multisearch?summoners={players}&region={ugg_region}"
+    return f"https://u.gg/lol/multisearch?summoners={players}&region={ugg_region}"
 
 
 def reveal(provider="porofessor", rengar=None, open_browser=True):

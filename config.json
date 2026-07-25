@@ -14,7 +14,7 @@
         "delay_seconds": 0.0
     },
     "lobby_reveal": {
-        "provider": "ugg"
+        "provider": "opgg"
     },
     "ragequeue": {
         "enabled": false,

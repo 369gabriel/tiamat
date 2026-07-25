@@ -101,6 +101,7 @@ def test_settings_open_without_league_and_save_live(monkeypatch):
 
     async def check(app, pilot):
         assert not app.connected
+        app.config.setdefault("lobby_reveal", {})["provider"] = "porofessor"
         await pilot.press("1", "6", "enter")
         await pilot.pause()
 
