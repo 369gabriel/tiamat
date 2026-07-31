@@ -34,7 +34,10 @@ class InstalockAutoban:
                 champ_id = champ["id"]
                 champ_name = champ["name"]
                 if champ_id > 0:
-                    self.champ_dict[champ_name.lower()] = champ_id
+                    normalized_name = champ_name.lower()
+                    current_id = self.champ_dict.get(normalized_name)
+                    if current_id is None or champ_id < current_id:
+                        self.champ_dict[normalized_name] = champ_id
         else:
             raise RuntimeError(f"Could not fetch champion data (HTTP {response.status_code})")
         return sorted(self.champ_dict)
@@ -136,20 +139,46 @@ class InstalockAutoban:
                                 if delay:
                                     time.sleep(delay)
                                 champion_id = self.champ_name_to_id(self.auto_ban_champion)
+                                action_endpoint = (
+                                    "/lol-champ-select/v1/session/actions/"
+                                    f"{action['id']}"
+                                )
 
                                 response = self.rengar.lcu_request(
                                     "PATCH",
-                                    f"/lol-champ-select/v1/session/actions/{action['id']}",
+                                    action_endpoint,
                                     {"completed": True, "championId": champion_id},
                                 )
                                 if not 200 <= response.status_code < 300:
                                     raise RuntimeError(
                                         f"Could not ban champion (HTTP {response.status_code})"
                                     )
-                                self.on_event(
-                                    "success",
-                                    f"Banned {self.auto_ban_champion}",
+
+                                verification = self.rengar.lcu_request(
+                                    "GET", "/lol-champ-select/v1/session", ""
                                 )
+                                if verification.status_code == 200:
+                                    verified_session = verification.json()
+                                    verified_action = next(
+                                        (
+                                            current_action
+                                            for action_group in verified_session.get(
+                                                "actions", []
+                                            )
+                                            for current_action in action_group
+                                            if current_action.get("id") == action["id"]
+                                        ),
+                                        None,
+                                    )
+                                    if (
+                                        verified_action
+                                        and verified_action.get("completed")
+                                        and verified_action.get("championId") == champion_id
+                                    ):
+                                        self.on_event(
+                                            "success",
+                                            f"Banned {self.auto_ban_champion}",
+                                        )
 
                                 continue
 
