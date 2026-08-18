@@ -114,7 +114,7 @@ uv run pytest
 
 Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
-Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up. Role preferences are automatically hidden and skipped for ARAM and TFT modes.
+Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up.
 
 Configuration supports Porofessor, OP.GG, and U.GG for Lobby Reveal, plus independent `0-2s` delays for Auto Accept, Instalock, and AutoBan.
 
@@ -129,7 +129,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📫 Support
 If you have any questions, suggestions, or complaints:
-- Discord: gabrielgyaf
 - Create an [Issue](https://github.com/gyaaf/tiamat/issues)
 
 ## 🙏 Acknowledgments
