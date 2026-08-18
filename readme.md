@@ -2,6 +2,8 @@
 
 Tiamat is a keyboard-first terminal application that provides utility functions for the League of Legends client, inspired by [KbotExt](https://github.com/KebsCS/KBotExt/), by Kebs.
 
+For questions, suggestions, support or feedback you can reach me on discord (gabrielgyaf) or join the [discord server](https://discord.gg/YKcHrU2tgJ).
+
 The interface opens immediately, detects the League Client in the background, and keeps module state and recent activity visible in one workspace.
 
 ![Tiamat menu interface](https://i.imgur.com/coZgPY9.png)
