@@ -19,6 +19,7 @@ DEFAULT_CONFIG = {
     "instalock": {
         "enabled": False,
         "champion": "Random",
+        "fallback_champion": None,
         "delay_seconds": 0.3,
     },
     "autoban": {

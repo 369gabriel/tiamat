@@ -17,7 +17,7 @@ class Feature:
 
 FEATURES = (
     Feature(1, "AUTOMATION", "Auto Accept", "Automatically accepts ready checks when a match is found.", "toggle"),
-    Feature(2, "AUTOMATION", "Instalock", "Selects and locks your preferred champion during champion select.", "configure"),
+    Feature(2, "AUTOMATION", "Instalock", "Locks your preferred champion, with an optional fallback if the main pick is unavailable.", "configure"),
     Feature(3, "AUTOMATION", "AutoBan", "Automatically bans your preferred champion during champion select.", "configure"),
     Feature(4, "AUTOMATION", "Ragequeue", "Creates your preferred lobby and resumes matchmaking after games.", "configure"),
     Feature(5, "CUSTOMIZATION", "Profile Icon", "Changes the profile icon visible on your Riot account.", "configure"),

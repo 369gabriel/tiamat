@@ -4,7 +4,7 @@ Tiamat is a keyboard-first terminal application that provides utility functions 
 
 For questions, suggestions, support or feedback you can reach me on discord (gabrielgyaf) or join the [discord server](https://discord.gg/YKcHrU2tgJ).
 
-The interface opens immediately, detects the League Client in the background, and keeps module state and recent activity visible in one workspace.
+The interface opens immediately, detects the League Client in the background, and shows module state with notifications for updates and errors.
 
 ![Tiamat menu interface](https://i.imgur.com/coZgPY9.png)
 
@@ -24,6 +24,7 @@ Use at your own risk, as some features might violate Riot Games' Terms of Servic
 * Auto Accept Match
 * Ragequeue with selectable lobby type
 * Autopick Champion
+  * Optional fallback champion when the main pick is banned, taken, or unavailable
 * Autoban Champion
 * Smart Dodge (Avoid client restart)
 
@@ -117,6 +118,8 @@ Configuration forms validate input inline. Destructive actions require confirmat
 Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up.
 
 Configuration supports Porofessor, OP.GG, and U.GG for Lobby Reveal, plus independent `0-2s` delays for Auto Accept, Instalock, and AutoBan.
+
+Instalock lets you select a main champion and an optional fallback. The fallback is disabled by default and can be cleared by selecting **Disabled**. If neither champion is available, Tiamat notifies you to pick manually.
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.

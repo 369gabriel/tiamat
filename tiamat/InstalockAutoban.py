@@ -10,6 +10,7 @@ class InstalockAutoban:
         self.champ_dict = {}
         self.instalock_enabled = bool(self.config["instalock"].get("enabled"))
         self.instalock_champion = self.config["instalock"].get("champion", "Random")
+        self.fallback_champion = self.config["instalock"].get("fallback_champion") or None
         self.auto_ban_enabled = bool(self.config["autoban"].get("enabled"))
         self.auto_ban_champion = self.config["autoban"].get("champion", "None")
         self.rengar = Rengar()
@@ -19,6 +20,7 @@ class InstalockAutoban:
     def save_settings(self):
         self.config["instalock"]["enabled"] = self.instalock_enabled
         self.config["instalock"]["champion"] = self.instalock_champion
+        self.config["instalock"]["fallback_champion"] = self.fallback_champion
         self.config["autoban"]["enabled"] = self.auto_ban_enabled
         self.config["autoban"]["champion"] = self.auto_ban_champion
         save_config(self.config)
@@ -70,6 +72,71 @@ class InstalockAutoban:
         self.on_event("success", f"AutoBan configured for {self.auto_ban_champion}")
         return self.auto_ban_champion
 
+    def configure_instalock(self, champion, fallback=None):
+        if not self.champ_dict:
+            self.update_champion_list()
+        if champion.lower() != "random" and self.champ_name_to_id(champion) == -1:
+            raise ValueError(f"Champion '{champion}' was not found")
+        if fallback and self.champ_name_to_id(fallback) == -1:
+            raise ValueError(f"Fallback champion '{fallback}' was not found")
+        if fallback and champion.lower() == fallback.lower():
+            raise ValueError("Choose a different fallback champion")
+        self.instalock_champion = "Random" if champion.lower() == "random" else champion
+        self.fallback_champion = fallback or None
+        self.instalock_enabled = True
+        self.save_settings()
+        message = f"Instalock configured for {self.instalock_champion}"
+        if self.fallback_champion:
+            message += f" (fallback: {self.fallback_champion})"
+        self.on_event("success", message)
+
+    def choose_pick(self, session):
+        response = self.rengar.lcu_request(
+            "GET", "/lol-champ-select/v1/pickable-champion-ids", ""
+        )
+        if response.status_code != 200:
+            raise RuntimeError(f"Could not check available champions (HTTP {response.status_code})")
+        pickable = response.json()
+        if not isinstance(pickable, list):
+            raise RuntimeError("Could not read available champions")
+        available = set(pickable)
+        bans = session.get("bans") or {}
+        available.difference_update(bans.get("myTeamBans", []), bans.get("theirTeamBans", []))
+        teams = list(session.get("myTeam", []))
+        if not session.get("allowDuplicatePicks", False):
+            teams += session.get("theirTeam", [])
+        # A hover is not a completed pick and must not trigger the fallback.
+        completed_picks = {
+            action.get("actorCellId")
+            for group in session.get("actions", []) for action in group
+            if action.get("type") == "pick" and action.get("completed")
+        }
+        available.difference_update(
+            player.get("championId") for player in teams
+            if player.get("cellId") in completed_picks
+        )
+        available.difference_update(
+            action.get("championId")
+            for group in session.get("actions", []) for action in group
+            if action.get("type") == "ban" and action.get("completed")
+        )
+        if self.instalock_champion == "Random":
+            choices = [(name.title(), champion_id) for name, champion_id in self.champ_dict.items()
+                       if champion_id in available]
+            if choices:
+                name, champion_id = random.choice(choices)
+                return champion_id, name
+        else:
+            champion_id = self.champ_name_to_id(self.instalock_champion)
+            if champion_id in available:
+                return champion_id, self.instalock_champion
+        if self.fallback_champion:
+            champion_id = self.champ_name_to_id(self.fallback_champion)
+            if champion_id in available:
+                return champion_id, self.fallback_champion
+        self.on_event("warning", "No configured champion is available; choose a champion manually")
+        return None
+
     def monitor_champ_select(self):
         while self._running:
             try:
@@ -99,6 +166,7 @@ class InstalockAutoban:
                                 and action["actorCellId"] == cell_id
                                 and action["type"] == "pick"
                                 and not action["completed"]
+                                and action.get("isInProgress", False)
                             ):
                                 delay = get_automation_delay(
                                     self.config, "instalock", 0.3
@@ -106,10 +174,22 @@ class InstalockAutoban:
                                 if delay:
                                     time.sleep(delay)
 
-                                if self.instalock_champion == "Random":
-                                    champion_id = random.choice(list(self.champ_dict.items()))[1]
-                                else:
-                                    champion_id = self.champ_name_to_id(self.instalock_champion)
+                                refreshed = self.rengar.lcu_request(
+                                    "GET", "/lol-champ-select/v1/session", ""
+                                )
+                                if refreshed.status_code != 200:
+                                    continue
+                                session = refreshed.json()
+                                current_action = next((
+                                    item for group in session.get("actions", []) for item in group
+                                    if item.get("id") == action["id"]
+                                ), None)
+                                if not current_action or current_action.get("completed") or not current_action.get("isInProgress"):
+                                    continue
+                                pick = self.choose_pick(session)
+                                if pick is None:
+                                    continue
+                                champion_id, champion_name = pick
 
                                 response = self.rengar.lcu_request(
                                     "PATCH",
@@ -122,7 +202,7 @@ class InstalockAutoban:
                                     )
                                 self.on_event(
                                     "success",
-                                    f"Locked {self.instalock_champion}",
+                                    f"Locked {champion_name}",
                                 )
 
                                 time.sleep(0.3)

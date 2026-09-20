@@ -109,6 +109,51 @@ class DialogScreen(ModalScreen):
                     self.focus_previous()
 
 
+class InstalockScreen(DialogScreen):
+    def __init__(self, champions, champion, fallback):
+        super().__init__()
+        self.champions = champions
+        self.champion = champion
+        self.fallback = fallback or ""
+
+    def compose(self) -> ComposeResult:
+        choices = [(name, name) for name in self.champions]
+        with Vertical(classes="dialog form-dialog"):
+            yield Label("Instalock", classes="dialog-title")
+            yield Static(
+                "Use the fallback only when your main champion is unavailable.",
+                classes="dialog-copy",
+            )
+            yield Label("Main champion", classes="field-label")
+            yield EnterSelect(
+                [("Random", "Random"), *choices], value=self.champion,
+                allow_blank=False, id="main-champion",
+            )
+            yield Label("Fallback champion (optional)", classes="field-label")
+            yield EnterSelect(
+                [("Disabled", ""), *choices], value=self.fallback,
+                allow_blank=False, id="fallback-champion",
+            )
+            yield Static("", id="form-error", classes="form-error")
+            with Horizontal(classes="dialog-actions"):
+                yield Button("Cancel", id="cancel", compact=True)
+                yield Button("Save", id="submit", compact=True)
+
+    def on_mount(self):
+        self.query_one("#main-champion", Select).focus()
+
+    def on_button_pressed(self, event):
+        if event.button.id == "cancel":
+            self.dismiss(None)
+        elif event.button.id == "submit":
+            champion = self.query_one("#main-champion", Select).value
+            fallback = self.query_one("#fallback-champion", Select).value or None
+            if champion == fallback:
+                self.query_one("#form-error", Static).update("Choose a different fallback champion.")
+                return
+            self.dismiss((champion, fallback))
+
+
 class SettingsScreen(DialogScreen):
     PROVIDERS = (
         ("Porofessor", "porofessor"),

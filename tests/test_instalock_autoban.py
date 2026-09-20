@@ -84,6 +84,8 @@ def test_champion_automation_uses_configured_delay(
 
     def fake_request(method, endpoint, _body):
         nonlocal patched
+        if endpoint == "/lol-champ-select/v1/pickable-champion-ids":
+            return FakeResponse([103])
         if method == "PATCH":
             patched = True
             return FakeResponse()
@@ -240,3 +242,113 @@ def test_autoban_reports_success_only_after_confirmation(monkeypatch):
         automation.monitor_champ_select()
 
     assert events == [("success", "Banned Ahri")]
+
+
+@pytest.mark.parametrize(("available", "fallback", "expected"), [
+    ([103, 99], "Lux", (103, "Ahri")),
+    ([99], "Lux", (99, "Lux")),
+    ([99], None, None),
+    ([], "Lux", None),
+])
+def test_optional_fallback_respects_champion_availability(available, fallback, expected):
+    automation = InstalockAutoban({
+        "instalock": {"champion": "Ahri", "fallback_champion": fallback}, "autoban": {},
+    })
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    automation.rengar.lcu_request = lambda *_: FakeResponse(available)
+    assert automation.choose_pick({}) == expected
+
+
+@pytest.mark.parametrize("session", [
+    {"bans": {"myTeamBans": [103], "theirTeamBans": []}},
+    {"actions": [[{"type": "ban", "completed": True, "championId": 103}]]},
+    {"theirTeam": [{"cellId": 7, "championId": 103}],
+     "actions": [[{"type": "pick", "completed": True, "actorCellId": 7}]]},
+])
+def test_fallback_skips_banned_or_taken_main(session):
+    automation = InstalockAutoban({
+        "instalock": {"champion": "Ahri", "fallback_champion": "Lux"}, "autoban": {},
+    })
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    automation.rengar.lcu_request = lambda *_: FakeResponse([103, 99])
+    assert automation.choose_pick(session) == (99, "Lux")
+
+
+def test_hover_does_not_trigger_fallback():
+    automation = InstalockAutoban({
+        "instalock": {"champion": "Ahri", "fallback_champion": "Lux"}, "autoban": {},
+    })
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    automation.rengar.lcu_request = lambda *_: FakeResponse([103, 99])
+    assert automation.choose_pick({
+        "myTeam": [{"cellId": 1, "championId": 103}],
+        "actions": [[{"type": "pick", "completed": False, "actorCellId": 1}]],
+    }) == (103, "Ahri")
+
+
+def test_fallback_is_saved_cleared_and_optional_for_old_configs(monkeypatch):
+    saved = []
+    monkeypatch.setattr(automation_module, "save_config", lambda config: saved.append(config))
+    automation = InstalockAutoban({"instalock": {}, "autoban": {}})
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    assert automation.fallback_champion is None
+    automation.configure_instalock("Ahri", "Lux")
+    assert saved[-1]["instalock"]["fallback_champion"] == "Lux"
+    assert InstalockAutoban(saved[-1]).fallback_champion == "Lux"
+    automation.configure_instalock("Ahri", None)
+    assert saved[-1]["instalock"]["fallback_champion"] is None
+    with pytest.raises(ValueError, match="different"):
+        automation.configure_instalock("Ahri", "Ahri")
+
+
+def test_availability_failure_does_not_choose_fallback():
+    automation = InstalockAutoban({
+        "instalock": {"champion": "Ahri", "fallback_champion": "Lux"}, "autoban": {},
+    })
+    response = FakeResponse([])
+    response.status_code = 503
+    automation.rengar.lcu_request = lambda *_: response
+    with pytest.raises(RuntimeError, match="available champions"):
+        automation.choose_pick({})
+
+
+@pytest.mark.parametrize(("available", "fallback", "expected"), [
+    ([103, 99], "Lux", 103),
+    ([99], "Lux", 99),
+    ([99], None, None),
+    ([], "Lux", None),
+])
+def test_monitor_locks_only_an_available_configured_pick(available, fallback, expected, monkeypatch):
+    events = []
+    automation = InstalockAutoban({
+        "instalock": {"enabled": True, "champion": "Ahri", "fallback_champion": fallback,
+                      "delay_seconds": 0},
+        "autoban": {},
+    }, lambda level, message: events.append((level, message)))
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    picks = []
+
+    def request(method, endpoint, body):
+        if endpoint.endswith("pickable-champion-ids"):
+            return FakeResponse(available)
+        if method == "PATCH":
+            picks.append(body["championId"])
+            return FakeResponse()
+        return FakeResponse({
+            "localPlayerCellId": 1,
+            "actions": [[{"id": 9, "actorCellId": 1, "type": "pick",
+                          "completed": False, "isInProgress": True}]],
+        })
+
+    def stop(_seconds):
+        raise StopMonitor
+
+    automation.rengar.lcu_request = request
+    monkeypatch.setattr(automation_module.time, "sleep", stop)
+    with pytest.raises(StopMonitor):
+        automation.monitor_champ_select()
+    assert picks == ([] if expected is None else [expected])
+    if expected == 99:
+        assert events == [("success", "Locked Lux")]
+    elif expected is None:
+        assert events == [("warning", "No configured champion is available; choose a champion manually")]

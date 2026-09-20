@@ -132,19 +132,6 @@ Screen {
     color: $info;
 }
 
-#activity-panel {
-    height: 8;
-    border-top: solid $border;
-    padding: 1 2 0 2;
-}
-
-#activity-log {
-    height: 1fr;
-    background: transparent;
-    scrollbar-color: $border;
-    scrollbar-background: transparent;
-}
-
 #shortcut-bar {
     display: none;
     height: 1;
@@ -338,10 +325,6 @@ DialogScreen {
 
 .compact #detail-panel {
     display: none;
-}
-
-.compact #activity-panel {
-    height: 6;
 }
 
 .compact .dialog {

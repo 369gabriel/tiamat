@@ -1,11 +1,9 @@
 import threading
 import time
-from datetime import datetime
 
-from rich.markup import escape
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Label, ListView, RichLog, Static
+from textual.widgets import Label, ListView, Static
 
 from AutoAccept import AutoAccept
 from Backgrounds import change_profile_background, fetch_all_champion_skins
@@ -26,6 +24,7 @@ from screens import (
     BadgeScreen,
     ConfirmScreen,
     InputFormScreen,
+    InstalockScreen,
     RagequeueScreen,
     SearchScreen,
     SettingsScreen,
@@ -82,10 +81,6 @@ class TiamatApp(App):
                 yield Static("", id="detail-description")
                 yield Static("", id="detail-meta")
                 yield Static("", id="detail-actions")
-
-        with Vertical(id="activity-panel"):
-            yield Static("ACTIVITY", classes="panel-heading")
-            yield RichLog(id="activity-log", markup=True, wrap=True, max_lines=100)
 
         yield Static("", id="shortcut-bar")
         yield Static(
@@ -223,21 +218,11 @@ class TiamatApp(App):
     def add_activity(self, level, message):
         now = time.monotonic()
         event_key = (level, message)
-        if level == "error" and now - self._last_events.get(event_key, 0) < 15:
+        if now - self._last_events.get(event_key, -float("inf")) < (15 if level == "error" else 3):
             return
         self._last_events[event_key] = now
-        styles = {
-            "success": "green",
-            "error": "red",
-            "warning": "yellow",
-            "system": "bright_black",
-            "info": "cyan",
-        }
-        style = styles.get(level, "white")
-        timestamp = datetime.now().strftime("%H:%M")
-        self.query_one("#activity-log", RichLog).write(
-            f"[bright_black]{timestamp}[/]  [{style}]{escape(level):<7}[/]  {escape(str(message))}"
-        )
+        severity = level if level in {"error", "warning"} else "information"
+        self.notify(str(message), severity=severity)
 
     def feature_state(self, number):
         if number == 1:
@@ -286,6 +271,9 @@ class TiamatApp(App):
                 "available" if self.connected else "waiting for League Client"
             )
         meta = f"STATUS\n{state_text}\n\nCLIENT\n{connected_text}"
+        if number == 2:
+            fallback = self.champion_automation.fallback_champion or "Disabled"
+            meta += f"\n\nFALLBACK\n{fallback}"
         self.query_one("#detail-meta", Static).update(meta)
 
         if feature.kind == "toggle":
@@ -410,7 +398,6 @@ class TiamatApp(App):
         if self.connected:
             return True
         self.add_activity("warning", "Start the League Client before using this module")
-        self.notify("League Client is not connected", severity="warning")
         return False
 
     def run_feature_action(
@@ -450,7 +437,6 @@ class TiamatApp(App):
 
     def action_failed(self, description, error, on_error=None):
         self.add_activity("error", f"{description}: {error}")
-        self.notify(str(error), title=description, severity="error")
         if on_error:
             on_error(error)
 
@@ -458,7 +444,6 @@ class TiamatApp(App):
         message = success_message(result) if callable(success_message) else success_message
         if message:
             self.add_activity("success", message)
-            self.notify(message, severity="information")
         if on_success:
             on_success(result)
         self.refresh_feature_states()
@@ -520,9 +505,18 @@ class TiamatApp(App):
 
     def open_champion_search(self, mode):
         def show_search(champions):
-            choices = [("Random", "Random")] if mode == "instalock" else []
-            choices.extend((name.title(), name.title()) for name in champions)
-            title = "Instalock Champion" if mode == "instalock" else "AutoBan Champion"
+            if mode == "instalock":
+                self.push_screen(
+                    InstalockScreen(
+                        [name.title() for name in champions],
+                        self.champion_automation.instalock_champion,
+                        self.champion_automation.fallback_champion,
+                    ),
+                    self.save_instalock,
+                )
+                return
+            choices = [(name.title(), name.title()) for name in champions]
+            title = "AutoBan Champion"
             self.push_screen(
                 SearchScreen(title, "Type a champion name, then select it.", choices),
                 lambda champion: self.save_champion(mode, champion),
@@ -533,6 +527,15 @@ class TiamatApp(App):
             self.champion_automation.update_champion_list,
             "",
             show_search,
+        )
+
+    def save_instalock(self, values):
+        if values is None:
+            return
+        self.run_feature_action(
+            "Configuring Instalock",
+            lambda: self.champion_automation.configure_instalock(*values),
+            "",
         )
 
     def save_champion(self, mode, champion):
@@ -769,7 +772,6 @@ class TiamatApp(App):
         ]
         save_config(self.config)
         self.add_activity("success", "Configuration saved")
-        self.notify("Configuration saved")
         self.refresh_feature_states()
 
     def confirm_dodge(self):
@@ -803,7 +805,6 @@ class TiamatApp(App):
     def toggle_chat(self):
         if self.chat is None:
             self.add_activity("warning", "Riot chat is not currently available")
-            self.notify("Riot chat is not currently available", severity="warning")
             return
         self.run_feature_action(
             "Changing chat connection",
@@ -816,7 +817,6 @@ class TiamatApp(App):
             count = len(friends)
             if count == 0:
                 self.add_activity("info", "There are no friends to remove")
-                self.notify("There are no friends to remove")
                 return
             self.push_screen(
                 ConfirmScreen(

@@ -7,6 +7,8 @@ import app as app_module
 from app import TiamatApp
 from screens import DelayStepper, SearchScreen, SettingsScreen, StatusScreen
 from widgets import FeatureItem
+from screens import InstalockScreen
+from unittest.mock import Mock
 
 
 def run_app_test(test, size=(120, 40)):
@@ -325,6 +327,69 @@ def test_compact_terminal_uses_single_pane_layout():
         assert app.query_one("#module-panel").region.width == 80
 
     run_app_test(check, size=(80, 24))
+
+
+def test_activity_panel_is_removed_and_automation_uses_notifications():
+    async def check(app, _pilot):
+        assert not app.query("#activity-panel, #activity-log")
+        app.notify = Mock()
+        app.receive_automation_event("success", "Locked Lux")
+        app.notify.assert_called_once_with("Locked Lux", severity="information")
+        app.receive_automation_event("success", "Locked Lux")
+        assert app.notify.call_count == 1
+        app.receive_automation_event("error", "Pick failed")
+        app.notify.assert_called_with("Pick failed", severity="error")
+
+    run_app_test(check)
+
+
+def test_instalock_configures_and_disables_optional_fallback(monkeypatch):
+    import InstalockAutoban as automation_module
+    monkeypatch.setattr(automation_module, "save_config", lambda _: None)
+
+    async def check(app, pilot):
+        app.connected = True
+        automation = app.champion_automation
+        automation.champ_dict = {"ahri": 103, "lux": 99}
+        automation.instalock_champion = "Ahri"
+        automation.fallback_champion = None
+        automation.update_champion_list = lambda: ["ahri", "lux"]
+        await pilot.press("2", "enter")
+        await pilot.pause()
+        assert isinstance(app.screen, InstalockScreen)
+        assert app.screen.query_one("#fallback-champion", Select).value == ""
+        app.screen.query_one("#fallback-champion", Select).value = "Lux"
+        await pilot.click("#submit")
+        await pilot.pause()
+        assert automation.fallback_champion == "Lux"
+        assert automation.instalock_enabled
+        assert "Lux" in str(app.query_one("#detail-meta", Static).render())
+        app.open_champion_search("instalock")
+        await pilot.pause()
+        assert app.screen.query_one("#fallback-champion", Select).value == "Lux"
+        app.screen.query_one("#fallback-champion", Select).value = ""
+        await pilot.click("#submit")
+        await pilot.pause()
+        assert automation.fallback_champion is None
+
+    run_app_test(check)
+
+
+def test_instalock_cancel_and_keyboard_navigation_in_short_terminal():
+    async def check(app, pilot):
+        original = app.champion_automation.fallback_champion
+        app.push_screen(InstalockScreen(["Ahri", "Lux"], "Ahri", None), app.save_instalock)
+        await pilot.pause()
+        await pilot.press("down")
+        assert app.screen.query_one("#fallback-champion", Select).has_focus
+        app.screen.query_one("#fallback-champion", Select).value = "Lux"
+        await pilot.press("down", "right")
+        assert app.screen.query_one("#submit", Button).has_focus
+        assert app.screen.query_one("#submit").region.bottom <= 20
+        await pilot.press("escape")
+        assert app.champion_automation.fallback_champion == original
+
+    run_app_test(check, size=(80, 20))
 
 
 def test_ragequeue_arrows_move_focus_without_opening_dropdowns():
