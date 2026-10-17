@@ -355,6 +355,7 @@ def test_instalock_configures_and_disables_optional_fallback(monkeypatch):
         automation.fallback_champion = None
         automation.update_champion_list = lambda: ["ahri", "lux"]
         await pilot.press("2", "enter")
+        await app.workers.wait_for_complete()
         await pilot.pause()
         assert isinstance(app.screen, InstalockScreen)
         assert app.screen.query_one("#fallback-champion", Select).value == ""
@@ -365,6 +366,7 @@ def test_instalock_configures_and_disables_optional_fallback(monkeypatch):
         assert automation.instalock_enabled
         assert "Lux" in str(app.query_one("#detail-meta", Static).render())
         app.open_champion_search("instalock")
+        await app.workers.wait_for_complete()
         await pilot.pause()
         assert app.screen.query_one("#fallback-champion", Select).value == "Lux"
         app.screen.query_one("#fallback-champion", Select).value = ""

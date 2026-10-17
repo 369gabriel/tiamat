@@ -123,6 +123,14 @@ class InstalockAutoban:
         if self.instalock_champion == "Random":
             choices = [(name.title(), champion_id) for name, champion_id in self.champ_dict.items()
                        if champion_id in available]
+            # Keep the random champion declared earlier in this draft.
+            local_player = next((
+                player for player in session.get("myTeam", [])
+                if player.get("cellId") == session.get("localPlayerCellId")
+            ), {})
+            for name, champion_id in choices:
+                if champion_id == local_player.get("championPickIntent"):
+                    return champion_id, name
             if choices:
                 name, champion_id = random.choice(choices)
                 return champion_id, name
@@ -136,6 +144,7 @@ class InstalockAutoban:
                 return champion_id, self.fallback_champion
         self.on_event("warning", "No configured champion is available; choose a champion manually")
         return None
+
 
     def monitor_champ_select(self):
         while self._running:
@@ -166,7 +175,6 @@ class InstalockAutoban:
                                 and action["actorCellId"] == cell_id
                                 and action["type"] == "pick"
                                 and not action["completed"]
-                                and action.get("isInProgress", False)
                             ):
                                 delay = get_automation_delay(
                                     self.config, "instalock", 0.3
@@ -174,19 +182,9 @@ class InstalockAutoban:
                                 if delay:
                                     time.sleep(delay)
 
-                                refreshed = self.rengar.lcu_request(
-                                    "GET", "/lol-champ-select/v1/session", ""
-                                )
-                                if refreshed.status_code != 200:
+                                if not self._running or not self.instalock_enabled:
                                     continue
-                                session = refreshed.json()
-                                current_action = next((
-                                    item for group in session.get("actions", []) for item in group
-                                    if item.get("id") == action["id"]
-                                ), None)
-                                if not current_action or current_action.get("completed") or not current_action.get("isInProgress"):
-                                    continue
-                                pick = self.choose_pick(session)
+                                pick = self.choose_pick(root_champ_select)
                                 if pick is None:
                                     continue
                                 champion_id, champion_name = pick
@@ -196,16 +194,10 @@ class InstalockAutoban:
                                     f"/lol-champ-select/v1/session/actions/{action['id']}",
                                     {"completed": True, "championId": champion_id},
                                 )
-                                if not 200 <= response.status_code < 300:
-                                    raise RuntimeError(
-                                        f"Could not lock champion (HTTP {response.status_code})"
-                                    )
-                                self.on_event(
-                                    "success",
-                                    f"Locked {champion_name}",
-                                )
-
-                                time.sleep(0.3)
+                                # Before our turn the client may reject the lock.
+                                # Keep trying on the normal cadence, without a readiness gate.
+                                if 200 <= response.status_code < 300:
+                                    self.on_event("success", f"Locked {champion_name}")
 
                             elif (
                                 self.auto_ban_enabled

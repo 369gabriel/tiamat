@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 
 import InstalockAutoban as automation_module
@@ -352,3 +354,66 @@ def test_monitor_locks_only_an_available_configured_pick(available, fallback, ex
         assert events == [("success", "Locked Lux")]
     elif expected is None:
         assert events == [("warning", "No configured champion is available; choose a champion manually")]
+
+
+@pytest.mark.parametrize(("main", "available", "expected"), [
+    ("Ahri", [103, 99], 103),
+    ("Ahri", [99], 99),
+    ("Random", [99], 99),
+])
+@pytest.mark.parametrize(("phase", "in_progress"), [
+    ("PLANNING", False), ("BAN_PICK", False), ("BAN_PICK", True),
+])
+def test_lock_retries_without_waiting_for_turn(main, available, expected, phase, in_progress, monkeypatch):
+    events = []
+    automation = InstalockAutoban({
+        "instalock": {"enabled": True, "champion": main, "fallback_champion": "Lux",
+                      "delay_seconds": 0}, "autoban": {},
+    }, lambda level, message: events.append((level, message)))
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    action = {"id": 9, "actorCellId": 1, "type": "pick", "completed": False,
+              "isInProgress": in_progress}
+    session = {"localPlayerCellId": 1, "timer": {"phase": phase}, "actions": [[action]]}
+    writes = []
+    session_reads = []
+    sleeps = []
+
+    def request(method, endpoint, body):
+        if method == "PATCH":
+            writes.append((endpoint, body))
+            response = FakeResponse()
+            response.status_code = 400 if len(writes) < 3 else 200
+            if response.status_code == 200:
+                action["completed"] = True
+            return response
+        if endpoint.endswith("pickable-champion-ids"):
+            return FakeResponse(available)
+        session_reads.append(endpoint)
+        return FakeResponse(copy.deepcopy(session))
+
+    def tick(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) == 4:
+            raise StopMonitor
+
+    automation.rengar.lcu_request = request
+    monkeypatch.setattr(automation_module.time, "sleep", tick)
+    with pytest.raises(StopMonitor):
+        automation.monitor_champ_select()
+    assert writes == [
+        ("/lol-champ-select/v1/session/actions/9", {"completed": True, "championId": expected}),
+    ] * 3
+    assert session_reads == ["/lol-champ-select/v1/session"] * 4
+    assert sleeps == [0.3] * 4
+    assert events == [("success", "Locked Ahri" if expected == 103 else "Locked Lux")]
+
+
+def test_random_pick_keeps_declared_champion_until_unavailable(monkeypatch):
+    automation = InstalockAutoban({"instalock": {"champion": "Random"}, "autoban": {}})
+    automation.champ_dict = {"ahri": 103, "lux": 99}
+    automation.rengar.lcu_request = lambda *_: FakeResponse([103, 99])
+    monkeypatch.setattr(automation_module.random, "choice", lambda choices: choices[0])
+    session = {"localPlayerCellId": 1, "myTeam": [{"cellId": 1, "championPickIntent": 99}]}
+    assert automation.choose_pick(session) == (99, "Lux")
+    session["bans"] = {"myTeamBans": [99]}
+    assert automation.choose_pick(session) == (103, "Ahri")
