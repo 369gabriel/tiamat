@@ -1,5 +1,6 @@
 import threading
 import time
+import webbrowser
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -31,6 +32,8 @@ from screens import (
     StatusScreen,
 )
 from StatusChanger import change_status
+from Updater import check_for_update
+from version import __version__
 from widgets import FEATURES, CategoryItem, FeatureItem
 
 
@@ -39,9 +42,15 @@ class TiamatApp(App):
     TITLE = "tiamat"
     ENABLE_COMMAND_PALETTE = False
 
-    def __init__(self, connect_on_mount=True):
+    def __init__(self, connect_on_mount=True, check_updates_on_mount=None):
         super().__init__()
         self.connect_on_mount = connect_on_mount
+        self.check_updates_on_mount = (
+            connect_on_mount
+            if check_updates_on_mount is None
+            else check_updates_on_mount
+        )
+        self.update_url = None
         self.config = load_config()
         self.connected = False
         self.account_text = "League Client not detected"
@@ -62,6 +71,7 @@ class TiamatApp(App):
     def compose(self) -> ComposeResult:
         with Horizontal(id="header"):
             yield Static("tiamat", id="brand")
+            yield Static(f"v{__version__}", id="version")
             yield Static(self.account_text, id="connection")
 
         feature_items = []
@@ -102,6 +112,42 @@ class TiamatApp(App):
                 thread=True,
                 exit_on_error=False,
             )
+        if self.check_updates_on_mount and self.config.get("updates", {}).get(
+            "check_on_startup", True
+        ):
+            self.run_worker(
+                self.update_check,
+                name="update-check",
+                group="updates",
+                thread=True,
+                exit_on_error=False,
+            )
+
+    def update_check(self):
+        update = check_for_update()
+        if update is None or self._stopping:
+            return
+        try:
+            self.call_from_thread(self.update_available, *update)
+        except RuntimeError:
+            return
+
+    def update_available(self, latest_version, url):
+        self.update_url = url
+        self.query_one("#version", Static).update(
+            f"v{__version__} -> v{latest_version}  [U] update"
+        )
+        self.query_one("#version", Static).set_class(True, "update-available")
+        self.notify(
+            f"Tiamat v{latest_version} is available (you have v{__version__}). "
+            "Press U to open the download page.",
+            title="Update available",
+            timeout=15,
+        )
+
+    def open_update_page(self):
+        if self.update_url:
+            webbrowser.open(self.update_url)
 
     def on_resize(self, event):
         self.set_class(event.size.width <= 85, "compact")
@@ -338,6 +384,9 @@ class TiamatApp(App):
         if key == "space":
             event.stop()
             self.toggle_feature(self.selected_feature_number)
+        elif key == "u" and self.update_url:
+            event.stop()
+            self.open_update_page()
         elif key == "j":
             event.stop()
             self.query_one(ListView).action_cursor_down()
@@ -758,7 +807,12 @@ class TiamatApp(App):
             for level in ("info", "warning", "error")
         }
         self.push_screen(
-            SettingsScreen(provider, delays, notifications),
+            SettingsScreen(
+                provider,
+                delays,
+                notifications,
+                bool(self.config.get("updates", {}).get("check_on_startup", True)),
+            ),
             self.save_settings,
         )
 
@@ -778,6 +832,9 @@ class TiamatApp(App):
             "autoban_delay"
         ]
         self.config["notifications"] = dict(settings["notifications"])
+        self.config.setdefault("updates", {})["check_on_startup"] = settings[
+            "check_updates"
+        ]
         save_config(self.config)
         self.add_activity("success", "Configuration saved")
         self.refresh_feature_states()

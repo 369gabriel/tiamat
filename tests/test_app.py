@@ -338,6 +338,7 @@ def test_compact_terminal_uses_single_pane_layout():
 def test_activity_panel_is_removed_and_automation_uses_notifications():
     async def check(app, _pilot):
         assert not app.query("#activity-panel, #activity-log")
+        app.config["notifications"] = {"info": True, "warning": True, "error": True}
         app.notify = Mock()
         app.receive_automation_event("success", "Locked Lux")
         app.notify.assert_called_once_with("Locked Lux", severity="information")
@@ -361,14 +362,37 @@ def test_notifications_can_be_disabled_per_level():
     run_app_test(check)
 
 
+def test_update_available_shows_notice_and_u_opens_release(monkeypatch):
+    opened = []
+    monkeypatch.setattr(app_module.webbrowser, "open", opened.append)
+
+    async def check(app, pilot):
+        app.notify = Mock()
+        await pilot.press("u")
+        assert opened == []
+
+        app.update_available("9.0.0", "https://example.test/release")
+        await pilot.pause()
+        assert app.notify.call_count == 1
+        assert "v9.0.0" in app.notify.call_args.args[0]
+        assert "v9.0.0" in str(app.query_one("#version", Static).render())
+
+        await pilot.press("u")
+        assert opened == ["https://example.test/release"]
+
+    run_app_test(check)
+
+
 def test_settings_save_notification_toggles(monkeypatch):
     monkeypatch.setattr(app_module, "save_config", lambda _: None)
 
     async def check(app, pilot):
+        app.config["notifications"] = {"info": True, "warning": True, "error": True}
         await pilot.press("1", "6", "enter")
         await pilot.pause()
         app.screen.query_one("#notify-info", ToggleSwitch).value = False
         app.screen.query_one("#notify-error", ToggleSwitch).value = False
+        app.screen.query_one("#check-updates", ToggleSwitch).value = False
         app.screen.query_one("#submit", Button).focus()
         await pilot.press("enter")
         await pilot.pause()
@@ -378,8 +402,9 @@ def test_settings_save_notification_toggles(monkeypatch):
             "warning": True,
             "error": False,
         }
+        assert app.config["updates"]["check_on_startup"] is False
 
-    run_app_test(check, size=(80, 30))
+    run_app_test(check, size=(80, 34))
 
 
 def test_instalock_configures_and_disables_optional_fallback(monkeypatch):

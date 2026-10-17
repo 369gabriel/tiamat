@@ -26,6 +26,17 @@ Screen {
     text-style: bold;
 }
 
+#version {
+    width: auto;
+    margin-right: 3;
+    color: $muted;
+}
+
+#version.update-available {
+    color: $warning;
+    text-style: bold;
+}
+
 #connection {
     width: auto;
     color: $muted;

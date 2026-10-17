@@ -22,6 +22,9 @@
         "warning": false,
         "error": false
     },
+    "updates": {
+        "check_on_startup": true
+    },
     "ragequeue": {
         "enabled": false,
         "queue_id": 420,

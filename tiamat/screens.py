@@ -203,10 +203,11 @@ class SettingsScreen(DialogScreen):
         "notify-error": True,
     }
 
-    def __init__(self, provider, delays, notifications=None):
+    def __init__(self, provider, delays, notifications=None, check_updates=True):
         super().__init__()
         self.provider = provider
         self.delays = delays
+        self.check_updates = check_updates
         self.notifications = notifications or dict(
             info=True, warning=True, error=True
         )
@@ -252,6 +253,10 @@ class SettingsScreen(DialogScreen):
             with Horizontal(classes="setting-row"):
                 yield Label("Errors", classes="setting-name")
                 yield ToggleSwitch(self.notifications["error"], id="notify-error")
+            yield Label("UPDATES", classes="settings-section")
+            with Horizontal(classes="setting-row"):
+                yield Label("Check on startup", classes="setting-name")
+                yield ToggleSwitch(self.check_updates, id="check-updates")
             with Horizontal(classes="dialog-actions"):
                 yield Button("Reset", id="reset", compact=True)
                 yield Button("Cancel", id="cancel", compact=True)
@@ -270,6 +275,7 @@ class SettingsScreen(DialogScreen):
                 self.query_one(f"#{stepper_id}", DelayStepper).value = value
             for toggle_id, value in self.DEFAULT_NOTIFICATIONS.items():
                 self.query_one(f"#{toggle_id}", ToggleSwitch).value = value
+            self.query_one("#check-updates", ToggleSwitch).value = True
             self.query_one("#reveal-provider", Select).focus()
             return
         self.dismiss(
@@ -288,6 +294,9 @@ class SettingsScreen(DialogScreen):
                     level: self.query_one(f"#notify-{level}", ToggleSwitch).value
                     for level in ("info", "warning", "error")
                 },
+                "check_updates": self.query_one(
+                    "#check-updates", ToggleSwitch
+                ).value,
             }
         )
 

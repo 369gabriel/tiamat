@@ -1,6 +1,6 @@
 [project]
 name = "tiamat"
-version = "0.1.0"
+version = "2.1.1"
 description = "A modern terminal interface for League of Legends client utilities"
 readme = "readme.md"
 requires-python = ">=3.10"

@@ -39,6 +39,9 @@ DEFAULT_CONFIG = {
         "warning": True,
         "error": True,
     },
+    "updates": {
+        "check_on_startup": True,
+    },
     "ragequeue": {
         "enabled": False,
         "queue_id": 420,
