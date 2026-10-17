@@ -216,6 +216,9 @@ class TiamatApp(App):
             return
 
     def add_activity(self, level, message):
+        category = level if level in {"error", "warning"} else "info"
+        if not self.config.get("notifications", {}).get(category, True):
+            return
         now = time.monotonic()
         event_key = (level, message)
         if now - self._last_events.get(event_key, -float("inf")) < (15 if level == "error" else 3):
@@ -750,8 +753,12 @@ class TiamatApp(App):
             "instalock": get_automation_delay(self.config, "instalock", 0.3),
             "autoban": get_automation_delay(self.config, "autoban", 0.3),
         }
+        notifications = {
+            level: bool(self.config.get("notifications", {}).get(level, True))
+            for level in ("info", "warning", "error")
+        }
         self.push_screen(
-            SettingsScreen(provider, delays),
+            SettingsScreen(provider, delays, notifications),
             self.save_settings,
         )
 
@@ -770,6 +777,7 @@ class TiamatApp(App):
         self.config.setdefault("autoban", {})["delay_seconds"] = settings[
             "autoban_delay"
         ]
+        self.config["notifications"] = dict(settings["notifications"])
         save_config(self.config)
         self.add_activity("success", "Configuration saved")
         self.refresh_feature_states()

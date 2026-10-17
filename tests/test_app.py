@@ -5,7 +5,13 @@ from textual.widgets import Button, Input, Select, Static
 
 import app as app_module
 from app import TiamatApp
-from screens import DelayStepper, SearchScreen, SettingsScreen, StatusScreen
+from screens import (
+    DelayStepper,
+    SearchScreen,
+    SettingsScreen,
+    StatusScreen,
+    ToggleSwitch,
+)
 from widgets import FeatureItem
 from screens import InstalockScreen
 from unittest.mock import Mock
@@ -341,6 +347,39 @@ def test_activity_panel_is_removed_and_automation_uses_notifications():
         app.notify.assert_called_with("Pick failed", severity="error")
 
     run_app_test(check)
+
+
+def test_notifications_can_be_disabled_per_level():
+    async def check(app, _pilot):
+        app.notify = Mock()
+        app.config["notifications"] = {"info": False, "warning": True, "error": True}
+        app.receive_automation_event("success", "Locked Lux")
+        app.notify.assert_not_called()
+        app.receive_automation_event("warning", "Careful")
+        app.notify.assert_called_once_with("Careful", severity="warning")
+
+    run_app_test(check)
+
+
+def test_settings_save_notification_toggles(monkeypatch):
+    monkeypatch.setattr(app_module, "save_config", lambda _: None)
+
+    async def check(app, pilot):
+        await pilot.press("1", "6", "enter")
+        await pilot.pause()
+        app.screen.query_one("#notify-info", ToggleSwitch).value = False
+        app.screen.query_one("#notify-error", ToggleSwitch).value = False
+        app.screen.query_one("#submit", Button).focus()
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert app.config["notifications"] == {
+            "info": False,
+            "warning": True,
+            "error": False,
+        }
+
+    run_app_test(check, size=(80, 30))
 
 
 def test_instalock_configures_and_disables_optional_fallback(monkeypatch):

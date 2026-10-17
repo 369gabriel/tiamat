@@ -304,10 +304,19 @@ DialogScreen {
     text-align: center;
 }
 
-.delay-stepper:hover {
+.toggle-switch {
+    width: 14;
+    height: 1;
+    color: $text;
+    text-align: center;
+}
+
+.delay-stepper:hover,
+.toggle-switch:hover {
     background: $elevated;
 }
 
+.toggle-switch:focus,
 .delay-stepper:focus {
     background: $elevated;
     color: $accent;

@@ -55,6 +55,37 @@ class DelayStepper(Static, can_focus=True):
             self.action_increase()
 
 
+class ToggleSwitch(Static, can_focus=True):
+    BINDINGS = [
+        Binding("enter", "toggle", "Toggle", show=False),
+        Binding("space", "toggle", "Toggle", show=False),
+        Binding("left", "set_off", "Off", show=False),
+        Binding("right", "set_on", "On", show=False),
+    ]
+    value = reactive(True)
+
+    def __init__(self, value, id):
+        super().__init__(id=id, classes="toggle-switch")
+        self.value = bool(value)
+
+    def watch_value(self, value):
+        self.update("<  ON  >" if value else "<  OFF >")
+
+    def action_toggle(self):
+        self.value = not self.value
+
+    def action_set_on(self):
+        self.value = True
+
+    def action_set_off(self):
+        self.value = False
+
+    def on_click(self, event):
+        event.stop()
+        self.focus()
+        self.action_toggle()
+
+
 class DialogScreen(ModalScreen):
     def on_key(self, event):
         if event.key == "escape":
@@ -166,10 +197,19 @@ class SettingsScreen(DialogScreen):
         "autoban-delay": 0.3,
     }
 
-    def __init__(self, provider, delays):
+    DEFAULT_NOTIFICATIONS = {
+        "notify-info": True,
+        "notify-warning": True,
+        "notify-error": True,
+    }
+
+    def __init__(self, provider, delays, notifications=None):
         super().__init__()
         self.provider = provider
         self.delays = delays
+        self.notifications = notifications or dict(
+            info=True, warning=True, error=True
+        )
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog settings-dialog"):
@@ -200,6 +240,18 @@ class SettingsScreen(DialogScreen):
                 yield DelayStepper(
                     self.delays["autoban"], id="autoban-delay"
                 )
+            yield Label("NOTIFICATIONS", classes="settings-section")
+            with Horizontal(classes="setting-row"):
+                yield Label("Info & success", classes="setting-name")
+                yield ToggleSwitch(self.notifications["info"], id="notify-info")
+            with Horizontal(classes="setting-row"):
+                yield Label("Warnings", classes="setting-name")
+                yield ToggleSwitch(
+                    self.notifications["warning"], id="notify-warning"
+                )
+            with Horizontal(classes="setting-row"):
+                yield Label("Errors", classes="setting-name")
+                yield ToggleSwitch(self.notifications["error"], id="notify-error")
             with Horizontal(classes="dialog-actions"):
                 yield Button("Reset", id="reset", compact=True)
                 yield Button("Cancel", id="cancel", compact=True)
@@ -216,6 +268,8 @@ class SettingsScreen(DialogScreen):
             self.query_one("#reveal-provider", Select).value = "porofessor"
             for stepper_id, value in self.DEFAULT_DELAYS.items():
                 self.query_one(f"#{stepper_id}", DelayStepper).value = value
+            for toggle_id, value in self.DEFAULT_NOTIFICATIONS.items():
+                self.query_one(f"#{toggle_id}", ToggleSwitch).value = value
             self.query_one("#reveal-provider", Select).focus()
             return
         self.dismiss(
@@ -230,6 +284,10 @@ class SettingsScreen(DialogScreen):
                 "autoban_delay": self.query_one(
                     "#autoban-delay", DelayStepper
                 ).value,
+                "notifications": {
+                    level: self.query_one(f"#notify-{level}", ToggleSwitch).value
+                    for level in ("info", "warning", "error")
+                },
             }
         )
 

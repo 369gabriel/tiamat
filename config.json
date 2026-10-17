@@ -2,6 +2,7 @@
     "instalock": {
         "enabled": false,
         "champion": "Random",
+        "fallback_champion": null,
         "delay_seconds": 0.3
     },
     "autoban": {
@@ -15,6 +16,11 @@
     },
     "lobby_reveal": {
         "provider": "ugg"
+    },
+    "notifications": {
+        "info": false,
+        "warning": false,
+        "error": false
     },
     "ragequeue": {
         "enabled": false,

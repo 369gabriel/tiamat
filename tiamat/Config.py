@@ -34,6 +34,11 @@ DEFAULT_CONFIG = {
     "lobby_reveal": {
         "provider": "porofessor",
     },
+    "notifications": {
+        "info": True,
+        "warning": True,
+        "error": True,
+    },
     "ragequeue": {
         "enabled": False,
         "queue_id": 420,
