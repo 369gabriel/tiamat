@@ -134,3 +134,61 @@ def test_no_module_level_rengar_instances():
                     offenders.append(f"{path.name}:{node.lineno}")
 
     assert offenders == []
+
+
+DARLING_UX_PATH = "/Applications/League of Legends.app/Contents/LoL/League of Legends.app/Contents/MacOS/LeagueClientUx"
+
+
+def test_find_league_client_credentials_under_darling(monkeypatch):
+    processes = [
+        FakeProcess(
+            {
+                "name": "CrBrowserMain",
+                "cmdline": [DARLING_UX_PATH, "--app-port=1234", "--remoting-auth-token=token"],
+            }
+        ),
+    ]
+    monkeypatch.setattr(rengar_module.psutil, "process_iter", lambda *args, **kwargs: processes)
+
+    assert rengar_module.find_league_client_credentials() == ("1234", "token")
+
+
+def test_find_riot_client_credentials_with_space_split_cmdline(monkeypatch):
+    cmdline = f"{DARLING_UX_PATH} --riotclient-app-port=5678 --riotclient-auth-token=riot-token".split(" ")
+    processes = [FakeProcess({"name": "CrBrowserMain", "cmdline": cmdline})]
+    monkeypatch.setattr(rengar_module.psutil, "process_iter", lambda *args, **kwargs: processes)
+
+    assert rengar_module.find_riot_client_credentials() == ("5678", "riot-token")
+
+
+def test_lockfile_fallback_only_while_client_runs(monkeypatch, tmp_path):
+    lockfile = tmp_path / rengar_module.DARLING_LOCKFILE
+    lockfile.parent.mkdir(parents=True)
+    lockfile.write_text("LeagueClient:50:4321:secret:https")
+    monkeypatch.setenv("DPREFIX", str(tmp_path))
+    monkeypatch.setattr(rengar_module.Path, "home", lambda: tmp_path / "nohome")
+
+    processes = [FakeProcess({"name": "CrBrowserMain", "cmdline": [DARLING_UX_PATH]})]
+    monkeypatch.setattr(rengar_module.psutil, "process_iter", lambda *args, **kwargs: processes)
+    assert rengar_module.find_league_client_credentials() == ("4321", "secret")
+
+    monkeypatch.setattr(rengar_module.psutil, "process_iter", lambda *args, **kwargs: [])
+    assert rengar_module.find_league_client_credentials() == (None, None)
+
+
+def test_other_league_processes_are_ignored(monkeypatch):
+    processes = [
+        FakeProcess(
+            {
+                "name": "mldr",
+                "cmdline": [
+                    "/Applications/League of Legends.app/Contents/LoL/LeagueClient.app/Contents/MacOS/LeagueClient",
+                    "--riotclient-app-port=1",
+                    "--riotclient-auth-token=wrong",
+                ],
+            }
+        ),
+    ]
+    monkeypatch.setattr(rengar_module.psutil, "process_iter", lambda *args, **kwargs: processes)
+
+    assert rengar_module.find_riot_client_credentials() == (None, None)

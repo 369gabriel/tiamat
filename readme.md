@@ -70,6 +70,19 @@ Run tests with:
 uv run pytest
 ```
 
+### Linux (Arch) via Darling
+This fork also detects the macOS League client running on Linux through
+[darling-lol](https://github.com/lucannez64/darling-lol). Under Darling the client
+processes are named after threads (`CrBrowserMain`, `mldr`), so Tiamat matches the
+`LeagueClientUx` executable path instead. It falls back to the lockfile in
+`$DPREFIX/Applications/League of Legends.app/Contents/LoL/` (defaults to `~/.darling`).
+
+```bash
+./run-linux.sh
+```
+
+The script creates a `.venv` on first run, so `uv` is not required.
+
 ## 💡 Usage
 
 ### First Time Setup
