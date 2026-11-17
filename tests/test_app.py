@@ -6,6 +6,7 @@ from textual.widgets import Button, Input, Select, Static
 import app as app_module
 from app import TiamatApp
 from screens import (
+    AutoBanScreen,
     DelayStepper,
     SearchScreen,
     SettingsScreen,
@@ -30,10 +31,10 @@ def run_app_test(test, size=(120, 40)):
 def test_app_mounts_grouped_numbered_interface():
     async def check(app, _pilot):
         assert str(app.query_one("#brand", Static).render()) == "tiamat"
-        assert len(app.query(FeatureItem)) == 16
+        assert len(app.query(FeatureItem)) == 15
         assert app.query_one("#feature-1", FeatureItem).feature.title == "Auto Accept"
-        assert app.query_one("#feature-15", FeatureItem).feature.title == "Remove All Friends"
-        assert app.query_one("#feature-16", FeatureItem).feature.title == "Configuration"
+        assert app.query_one("#feature-14", FeatureItem).feature.title == "Remove All Friends"
+        assert app.query_one("#feature-15", FeatureItem).feature.title == "Configuration"
         assert "League Client not detected" in str(
             app.query_one("#connection", Static).render()
         )
@@ -110,7 +111,7 @@ def test_settings_open_without_league_and_save_live(monkeypatch):
     async def check(app, pilot):
         assert not app.connected
         app.config.setdefault("lobby_reveal", {})["provider"] = "porofessor"
-        await pilot.press("1", "6", "enter")
+        await pilot.press("1", "5", "enter")
         await pilot.pause()
 
         assert isinstance(app.screen, SettingsScreen)
@@ -142,7 +143,7 @@ def test_settings_open_without_league_and_save_live(monkeypatch):
 
 def test_settings_steppers_clamp_and_reset_defaults():
     async def check(app, pilot):
-        await pilot.press("1", "6", "enter")
+        await pilot.press("1", "5", "enter")
         await pilot.pause()
 
         auto_accept = app.screen.query_one("#auto-accept-delay", DelayStepper)
@@ -228,7 +229,7 @@ def test_background_screen_opens_before_skins_finish_loading():
 def test_local_configuration_and_confirmation_screens_mount():
     async def check(app, pilot):
         app.connected = True
-        for number in (4, 5, 6, 8, 9, 10, 12, 13):
+        for number in (4, 5, 6, 8, 9, 10, 12):
             await pilot.press(*str(number), "enter")
             await pilot.pause()
             assert len(app.screen_stack) == 2
@@ -388,7 +389,7 @@ def test_settings_save_notification_toggles(monkeypatch):
 
     async def check(app, pilot):
         app.config["notifications"] = {"info": True, "warning": True, "error": True}
-        await pilot.press("1", "6", "enter")
+        await pilot.press("1", "5", "enter")
         await pilot.pause()
         app.screen.query_one("#notify-info", ToggleSwitch).value = False
         app.screen.query_one("#notify-error", ToggleSwitch).value = False
@@ -437,6 +438,35 @@ def test_instalock_configures_and_disables_optional_fallback(monkeypatch):
         await pilot.click("#submit")
         await pilot.pause()
         assert automation.fallback_champion is None
+
+    run_app_test(check)
+
+
+def test_autoban_uses_the_same_champion_dropdown_as_instalock(monkeypatch):
+    import InstalockAutoban as automation_module
+    monkeypatch.setattr(automation_module, "save_config", lambda _: None)
+
+    async def check(app, pilot):
+        app.connected = True
+        automation = app.champion_automation
+        automation.champ_dict = {"ahri": 103, "lux": 99}
+        automation.auto_ban_champion = "Ahri"
+        automation.auto_ban_enabled = False
+        automation.update_champion_list = lambda: ["ahri", "lux"]
+        await pilot.press("3", "enter")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+
+        assert isinstance(app.screen, AutoBanScreen)
+        champion = app.screen.query_one("#autoban-champion", Select)
+        assert champion.value == "Ahri"
+        champion.value = "Lux"
+        await pilot.click("#submit")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        assert automation.auto_ban_champion == "Lux"
+        assert automation.auto_ban_enabled
+        assert "Lux" in str(app.query_one("#detail-meta", Static).render())
 
     run_app_test(check)
 

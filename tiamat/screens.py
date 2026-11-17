@@ -140,49 +140,103 @@ class DialogScreen(ModalScreen):
                     self.focus_previous()
 
 
-class InstalockScreen(DialogScreen):
-    def __init__(self, champions, champion, fallback):
+class ChampionScreen(DialogScreen):
+    def __init__(self, title, description, fields):
         super().__init__()
-        self.champions = champions
-        self.champion = champion
-        self.fallback = fallback or ""
+        self.dialog_title = title
+        self.description = description
+        self.fields = fields
 
     def compose(self) -> ComposeResult:
-        choices = [(name, name) for name in self.champions]
         with Vertical(classes="dialog form-dialog"):
-            yield Label("Instalock", classes="dialog-title")
-            yield Static(
-                "Use the fallback only when your main champion is unavailable.",
-                classes="dialog-copy",
-            )
-            yield Label("Main champion", classes="field-label")
-            yield EnterSelect(
-                [("Random", "Random"), *choices], value=self.champion,
-                allow_blank=False, id="main-champion",
-            )
-            yield Label("Fallback champion (optional)", classes="field-label")
-            yield EnterSelect(
-                [("Disabled", ""), *choices], value=self.fallback,
-                allow_blank=False, id="fallback-champion",
-            )
+            yield Label(self.dialog_title, classes="dialog-title")
+            yield Static(self.description, classes="dialog-copy")
+            for key, label, options, value in self.fields:
+                yield Label(label, classes="field-label")
+                yield EnterSelect(
+                    options,
+                    value=value,
+                    allow_blank=False,
+                    id=key,
+                )
             yield Static("", id="form-error", classes="form-error")
             with Horizontal(classes="dialog-actions"):
                 yield Button("Cancel", id="cancel", compact=True)
-                yield Button("Save", id="submit", compact=True)
+                yield Button(
+                    "Save",
+                    id="submit",
+                    variant="primary",
+                    compact=True,
+                )
 
     def on_mount(self):
-        self.query_one("#main-champion", Select).focus()
+        self.query(EnterSelect).first().focus()
+
+    def validate(self, values):
+        return ""
 
     def on_button_pressed(self, event):
         if event.button.id == "cancel":
             self.dismiss(None)
-        elif event.button.id == "submit":
-            champion = self.query_one("#main-champion", Select).value
-            fallback = self.query_one("#fallback-champion", Select).value or None
-            if champion == fallback:
-                self.query_one("#form-error", Static).update("Choose a different fallback champion.")
-                return
-            self.dismiss((champion, fallback))
+            return
+        values = tuple(
+            self.query_one(f"#{key}", Select).value
+            for key, _label, _options, _value in self.fields
+        )
+        error = self.validate(values)
+        if error:
+            self.query_one("#form-error", Static).update(error)
+            return
+        self.dismiss(values)
+
+
+class InstalockScreen(ChampionScreen):
+    def __init__(self, champions, champion, fallback):
+        choices = [(name, name) for name in champions]
+        super().__init__(
+            "Instalock",
+            "Use the fallback only when your main champion is unavailable.",
+            [
+                (
+                    "main-champion",
+                    "Main champion",
+                    [("Random", "Random"), *choices],
+                    champion,
+                ),
+                (
+                    "fallback-champion",
+                    "Fallback champion (optional)",
+                    [("Disabled", ""), *choices],
+                    fallback or "",
+                ),
+            ],
+        )
+
+    def validate(self, values):
+        champion, fallback = values
+        if champion == fallback:
+            return "Choose a different fallback champion."
+        return ""
+
+
+class AutoBanScreen(ChampionScreen):
+    def __init__(self, champions, champion):
+        choices = [(name, name) for name in champions]
+        if not choices:
+            choices = [("No champions available", "")]
+        values = [value for _label, value in choices]
+        if champion not in values:
+            champion = values[0]
+        super().__init__(
+            "AutoBan",
+            "Choose the champion to ban during champion select.",
+            [("autoban-champion", "Champion to ban", choices, champion)],
+        )
+
+    def validate(self, values):
+        if not values[0]:
+            return "No champion is available to ban."
+        return ""
 
 
 class SettingsScreen(DialogScreen):

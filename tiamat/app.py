@@ -11,7 +11,6 @@ from Backgrounds import change_profile_background, fetch_all_champion_skins
 from Badges import change_profile_badges
 from Config import get_automation_delay, load_config, save_config
 from disconnect_reconnect_chat import Chat
-from Dodge import dodge
 from Icons import change_profile_icon
 from Iconsclient import icon_client
 from InstalockAutoban import InstalockAutoban
@@ -22,6 +21,7 @@ from RestartUX import restart
 from Reveal import REVEAL_PROVIDERS, reveal
 from Riotidchanger import change_riotid
 from screens import (
+    AutoBanScreen,
     BadgeScreen,
     ConfirmScreen,
     InputFormScreen,
@@ -286,9 +286,9 @@ class TiamatApp(App):
             return self.champion_automation.auto_ban_champion
         if number == 4:
             return self.ragequeue.queue_name if self.ragequeue.enabled else "OFF"
-        if number == 14:
+        if number == 13:
             return self.chat.return_state() if self.chat else "--"
-        if number == 16:
+        if number == 15:
             provider = self.config.get("lobby_reveal", {}).get(
                 "provider", "porofessor"
             )
@@ -313,7 +313,7 @@ class TiamatApp(App):
 
         state = self.feature_state(number)
         state_text = state or "Ready"
-        if number == 16:
+        if number == 15:
             connected_text = "not required"
         else:
             connected_text = (
@@ -375,7 +375,7 @@ class TiamatApp(App):
             event.stop()
             number = int(self.shortcut_buffer)
             self.clear_shortcut()
-            if 1 <= number <= 16:
+            if 1 <= number <= 15:
                 self.select_feature(number)
                 self.activate_feature(number)
             elif number == 99:
@@ -418,7 +418,7 @@ class TiamatApp(App):
     def append_shortcut(self, digit):
         if not self.shortcut_buffer:
             self.query_one("#feature-list", ListView).blur()
-        valid_commands = [str(number) for number in range(1, 17)] + ["99"]
+        valid_commands = [str(number) for number in range(1, 16)] + ["99"]
         candidate = self.shortcut_buffer + digit
         if not any(command.startswith(candidate) for command in valid_commands):
             candidate = digit
@@ -501,7 +501,7 @@ class TiamatApp(App):
         self.refresh_feature_states()
 
     def activate_feature(self, number):
-        if number != 16 and not self.require_connection():
+        if number != 15 and not self.require_connection():
             return
         actions = {
             1: self.toggle_auto_accept,
@@ -515,16 +515,15 @@ class TiamatApp(App):
             9: self.open_badges,
             10: self.open_status,
             11: self.run_lobby_reveal,
-            12: self.confirm_dodge,
-            13: self.confirm_restart,
-            14: self.toggle_chat,
-            15: self.prepare_remove_friends,
-            16: self.open_settings,
+            12: self.confirm_restart,
+            13: self.toggle_chat,
+            14: self.prepare_remove_friends,
+            15: self.open_settings,
         }
         actions[number]()
 
     def toggle_feature(self, number):
-        if number == 16:
+        if number == 15:
             return
         if not self.require_connection():
             return
@@ -548,7 +547,7 @@ class TiamatApp(App):
                 self.refresh_feature_states()
             else:
                 self.open_ragequeue()
-        elif number == 14:
+        elif number == 13:
             self.toggle_chat()
 
     def toggle_auto_accept(self):
@@ -557,21 +556,20 @@ class TiamatApp(App):
 
     def open_champion_search(self, mode):
         def show_search(champions):
+            names = [name.title() for name in champions]
             if mode == "instalock":
                 self.push_screen(
                     InstalockScreen(
-                        [name.title() for name in champions],
+                        names,
                         self.champion_automation.instalock_champion,
                         self.champion_automation.fallback_champion,
                     ),
                     self.save_instalock,
                 )
                 return
-            choices = [(name.title(), name.title()) for name in champions]
-            title = "AutoBan Champion"
             self.push_screen(
-                SearchScreen(title, "Type a champion name, then select it.", choices),
-                lambda champion: self.save_champion(mode, champion),
+                AutoBanScreen(names, self.champion_automation.auto_ban_champion),
+                lambda values: self.save_champion(values[0]) if values else None,
             )
 
         self.run_feature_action(
@@ -590,18 +588,13 @@ class TiamatApp(App):
             "",
         )
 
-    def save_champion(self, mode, champion):
+    def save_champion(self, champion):
         if not champion:
             return
-        setter = (
-            self.champion_automation.set_instalock_champion
-            if mode == "instalock"
-            else self.champion_automation.set_auto_ban_champion
-        )
         self.run_feature_action(
-            f"Configuring {mode}",
-            lambda: setter(champion),
-            lambda value: f"{mode.title()} configured for {value}",
+            "Configuring AutoBan",
+            lambda: self.champion_automation.set_auto_ban_champion(champion),
+            "",
         )
 
     def open_ragequeue(self):
@@ -838,20 +831,6 @@ class TiamatApp(App):
         save_config(self.config)
         self.add_activity("success", "Configuration saved")
         self.refresh_feature_states()
-
-    def confirm_dodge(self):
-        self.push_screen(
-            ConfirmScreen(
-                "Dodge Champion Select",
-                "This will immediately leave the current champion select.",
-                "Dodge now",
-            ),
-            lambda confirmed: self.run_feature_action(
-                "Dodging champion select", dodge, "Champion select dodged"
-            )
-            if confirmed
-            else None,
-        )
 
     def confirm_restart(self):
         self.push_screen(

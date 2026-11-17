@@ -27,11 +27,10 @@ FEATURES = (
     Feature(9, "CUSTOMIZATION", "Profile Badges", "Clears, duplicates, or applies glitched profile badges.", "configure"),
     Feature(10, "CUSTOMIZATION", "Status Message", "Updates the multiline status displayed to your friends.", "configure"),
     Feature(11, "GAME TOOLS", "Lobby Reveal", "Opens the current champion-select lobby with your configured website."),
-    Feature(12, "GAME TOOLS", "Dodge", "Leaves the current champion select without restarting the client.", destructive=True),
-    Feature(13, "GAME TOOLS", "Restart Client UX", "Restarts the League Client interface without closing the game.", destructive=True),
-    Feature(14, "SOCIAL", "Disconnect Chat", "Appears offline by suspending the Riot chat connection.", "toggle"),
-    Feature(15, "SOCIAL", "Remove All Friends", "Permanently removes every friend from the account.", destructive=True),
-    Feature(16, "SETTINGS", "Configuration", "Configures Lobby Reveal and automation response delays.", "configure"),
+    Feature(12, "GAME TOOLS", "Restart Client UX", "Restarts the League Client interface without closing the game.", destructive=True),
+    Feature(13, "SOCIAL", "Disconnect Chat", "Appears offline by suspending the Riot chat connection.", "toggle"),
+    Feature(14, "SOCIAL", "Remove All Friends", "Permanently removes every friend from the account.", destructive=True),
+    Feature(15, "SETTINGS", "Configuration", "Configures Lobby Reveal and automation response delays.", "configure"),
 )
 
 

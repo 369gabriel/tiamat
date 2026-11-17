@@ -26,7 +26,6 @@ Use at your own risk, as some features might violate Riot Games' Terms of Servic
 * Autopick Champion
   * Optional fallback champion when the main pick is banned, taken, or unavailable
 * Autoban Champion
-* Smart Dodge (Avoid client restart)
 
 ### Utility
 * Lobby Reveal
@@ -85,7 +84,7 @@ uv run pytest
 | `Enter` | Open or run the selected module |
 | `Space` | Toggle the selected automation |
 | `/` | Search modules |
-| `1` through `16`, then `Enter` | Open or run a module directly |
+| `1` through `15`, then `Enter` | Open or run a module directly |
 | `99`, then `Enter` or `q` | Exit |
 | `Esc` | Close a form or confirmation |
 | Left click | Open or run a module |
@@ -107,11 +106,10 @@ uv run pytest
 | `9` | Customization | Profile Badges |
 | `10` | Customization | Status Message |
 | `11` | Game Tools | Lobby Reveal |
-| `12` | Game Tools | Dodge |
-| `13` | Game Tools | Restart Client UX |
-| `14` | Social | Disconnect Chat |
-| `15` | Social | Remove All Friends |
-| `16` | Settings | Configuration |
+| `12` | Game Tools | Restart Client UX |
+| `13` | Social | Disconnect Chat |
+| `14` | Social | Remove All Friends |
+| `15` | Settings | Configuration |
 
 Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
