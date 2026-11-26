@@ -283,3 +283,25 @@ def test_reveal_uses_shared_name_resolution():
     url = reveal(provider="opgg", rengar=api, open_browser=False)
 
     assert url == "https://www.op.gg/multisearch/br?summoners=Me%23BR1,Friend%23TAG"
+
+
+def test_hidden_losses_show_wins_instead_of_a_fake_winrate():
+    # The LCU reports 0 losses for other players; 23-0 must not render as 100%.
+    hidden = {"tier": "EMERALD", "division": "II", "leaguePoints": 55, "wins": 23, "losses": 0}
+    view = build_champ_select_view(
+        champ_select_session(),
+        {0: ("Smoochie Girl#Gwen", "p0")},
+        [],
+        CHAMPIONS,
+        ranks={"p0": build_home_view({}, {"queueMap": {"RANKED_SOLO_5x5": hidden}}, None).solo},
+    )
+    rank = view.team[0].rank
+
+    assert (rank.losses, rank.games, rank.winrate) == (None, None, None)
+    text = render_live_text(ClientSnapshot(True, "ChampSelect", champ_select=view), now_ms=0)
+    assert "E2 55LP" in text and "23W" in text
+    assert "100%" not in text
+
+    home = render_live_text(ClientSnapshot(True, "None", home=HomeView(solo=rank)))
+    assert "Emerald II  55 LP   23W" in home and "%" not in home
+

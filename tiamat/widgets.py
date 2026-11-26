@@ -129,10 +129,10 @@ def _rank_text(entry):
     tier = entry.tier.title()
     text = Text(f"{tier} {entry.division}".strip(), style=f"bold {TEXT}")
     text.append(f"  {entry.league_points} LP", style=TEXT)
-    games = entry.wins + entry.losses
-    if games:
-        rate = round(entry.wins * 100 / games)
-        text.append(f"   {entry.wins}W {entry.losses}L  {rate}%", style=MUTED)
+    if entry.winrate is not None:
+        text.append(f"   {entry.wins}W {entry.losses}L  {entry.winrate}%", style=MUTED)
+    elif entry.wins:
+        text.append(f"   {entry.wins}W", style=MUTED)
     return text
 
 
@@ -201,8 +201,11 @@ def _short_rank(member):
 
 def _short_winrate(member):
     rank = member.rank if member.rank_loaded else None
-    if rank is None or rank.winrate is None:
+    if rank is None:
         return Text("")
+    if rank.winrate is None:
+        # Losses are not available for this player, so a winrate would be made up.
+        return Text(f"{rank.wins}W", style=MUTED) if rank.wins else Text("")
     rate = rank.winrate
     style = SUCCESS if rate >= 55 else ACCENT if rate <= 45 else TEXT
     text = Text(f"{rate}%", style=style)

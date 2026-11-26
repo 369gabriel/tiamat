@@ -5,7 +5,10 @@ snapshots; the UI thread only renders them.
 """
 
 import time
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, replace
+
+from OpggStats import OpggClient
 
 POSITION_LABELS = {
     "TOP": "TOP",
@@ -44,6 +47,7 @@ HOME_REFRESH_SECONDS = 30
 CHAT_REFRESH_SECONDS = 5
 NAME_RETRY_SECONDS = 2
 RANK_ATTEMPTS = 3
+OPGG_WORKERS = 5
 
 
 @dataclass(frozen=True)
@@ -75,11 +79,11 @@ class RankEntry:
     division: str
     league_points: int
     wins: int
-    losses: int
+    losses: int | None  # None when the client hides it (always 0 for other players)
 
     @property
     def games(self):
-        return self.wins + self.losses
+        return None if self.losses is None else self.wins + self.losses
 
     @property
     def winrate(self):
@@ -227,18 +231,37 @@ def _deadline(session, now_ms):
     return int(base + left)
 
 
+RANK_QUEUE_KEYS = {"SOLO/DUO": "RANKED_SOLO_5x5", "FLEX": "RANKED_FLEX_SR"}
+
+
 def build_champ_select_view(
-    session, players, unmatched, champions, ranks=None, rank_queue="SOLO/DUO", now_ms=None
+    session,
+    players,
+    unmatched,
+    champions,
+    ranks=None,
+    rank_queue="SOLO/DUO",
+    now_ms=None,
+    records=None,
 ):
     """``players`` maps cell id to ``(riot_id, puuid)``; ``unmatched`` is a list of
-    such pairs; ``ranks`` maps puuid to a RankEntry (or None for unranked)."""
+    such pairs; ``ranks`` maps puuid to a RankEntry (or None for unranked);
+    ``records`` maps riot id to OP.GG ``{queue_key: (wins, losses)}``."""
     now_ms = time.time() * 1000 if now_ms is None else now_ms
     ranks = ranks or {}
+    records = records or {}
+    queue_key = RANK_QUEUE_KEYS.get(rank_queue, "RANKED_SOLO_5x5")
 
-    def rank_fields(puuid):
-        if puuid and puuid in ranks:
-            return {"rank": ranks[puuid], "rank_loaded": True}
-        return {}
+    def rank_fields(puuid, riot_id=None):
+        if not puuid or puuid not in ranks:
+            return {}
+        rank = ranks[puuid]
+        # Tier and LP stay live from the client; OP.GG supplies the W/L pair,
+        # which the client hides for other players.
+        wins, losses = (records.get(riot_id) or {}).get(queue_key, (0, 0))
+        if rank is not None and wins + losses > 0:
+            rank = replace(rank, wins=wins, losses=losses)
+        return {"rank": rank, "rank_loaded": True}
 
     local_cell = session.get("localPlayerCellId")
     team = session.get("myTeam", []) or []
@@ -277,7 +300,7 @@ def build_champ_select_view(
                 champion=champion,
                 state=state,
                 is_local=cell_id == local_cell,
-                **rank_fields(puuid or player.get("puuid")),
+                **rank_fields(puuid or player.get("puuid"), name),
             )
         )
 
@@ -303,7 +326,7 @@ def build_champ_select_view(
         my_bans=tuple(_champion_name(champions, champion_id) for champion_id in my_ban_ids),
         their_bans=tuple(_champion_name(champions, champion_id) for champion_id in their_ban_ids),
         unmatched=tuple(
-            TeamMember(None, "", riot_id, None, "", False, **rank_fields(puuid))
+            TeamMember(None, "", riot_id, None, "", False, **rank_fields(puuid, riot_id))
             for riot_id, puuid in unmatched
         ),
         rank_queue=rank_queue,
@@ -324,7 +347,9 @@ def _rank_entry(queue):
         division=division,
         league_points=int(queue.get("leaguePoints") or 0),
         wins=int(queue.get("wins") or 0),
-        losses=int(queue.get("losses") or 0),
+        # The LCU reports 0 losses for every other player, which would turn any
+        # record into a fake 100% winrate; treat 0 as "not available".
+        losses=int(queue.get("losses") or 0) or None,
     )
 
 
@@ -344,9 +369,11 @@ def build_home_view(summoner, ranked, chat_status):
 
 
 class ClientStateMonitor:
-    def __init__(self, on_snapshot=None, rengar=None, clock=time.monotonic):
+    def __init__(self, on_snapshot=None, rengar=None, clock=time.monotonic, opgg=None):
         self.on_snapshot = on_snapshot or (lambda _snapshot: None)
         self.clock = clock
+        self.opgg = opgg if opgg is not None else OpggClient()
+        self._executor = None
         self._running = True
         self.attach(rengar)
 
@@ -361,6 +388,8 @@ class ClientStateMonitor:
         self._home_at = None
         self._chat_status = None
         self._chat_at = None
+        self._region = None
+        self._region_checked = False
         self._reset_champ_select()
 
     def _reset_champ_select(self):
@@ -371,6 +400,8 @@ class ClientStateMonitor:
         self._ranks = {}
         self._rank_attempts = {}
         self._rank_queue = None
+        self._records = {}
+        self._record_futures = {}
 
     def _get_json(self, endpoint):
         response = self.rengar.lcu_request("GET", endpoint, "")
@@ -435,6 +466,10 @@ class ClientStateMonitor:
         for puuid in dict.fromkeys(puuid for puuid in puuids if puuid):
             self._load_rank(puuid)
 
+        riot_ids = [riot_id for riot_id, _puuid in self._players.values()]
+        riot_ids += [riot_id for riot_id, _puuid in self._unmatched]
+        self._lookup_records(riot_ids)
+
         return build_champ_select_view(
             session,
             self._players,
@@ -442,7 +477,38 @@ class ClientStateMonitor:
             self._champions,
             self._ranks,
             "FLEX" if self._rank_queue == "RANKED_FLEX_SR" else "SOLO/DUO",
+            records=self._records,
         )
+
+    def _region_code(self):
+        if not self._region_checked:
+            self._region_checked = True
+            locale = self._get_json("/riotclient/region-locale") or {}
+            self._region = (locale.get("webRegion") or "").upper() or None
+        return self._region
+
+    def _lookup_records(self, riot_ids):
+        """Fetch OP.GG W/L records in the background; never block the poll."""
+        region = self._region_code()
+        if not region:
+            return
+        for riot_id in riot_ids:
+            if riot_id and riot_id not in self._record_futures:
+                if self._executor is None:
+                    self._executor = ThreadPoolExecutor(
+                        max_workers=OPGG_WORKERS, thread_name_prefix="opgg"
+                    )
+                self._record_futures[riot_id] = self._executor.submit(
+                    self.opgg.fetch_records, riot_id, region
+                )
+        for riot_id, future in self._record_futures.items():
+            if riot_id in self._records or not future.done():
+                continue
+            try:
+                self._records[riot_id] = future.result() or {}
+            except Exception:
+                # Best-effort: without OP.GG the panel shows wins only.
+                self._records[riot_id] = {}
 
     def _load_rank(self, puuid):
         attempts = self._rank_attempts.get(puuid, 0)
@@ -491,3 +557,5 @@ class ClientStateMonitor:
 
     def stop(self):
         self._running = False
+        if self._executor is not None:
+            self._executor.shutdown(wait=False, cancel_futures=True)
