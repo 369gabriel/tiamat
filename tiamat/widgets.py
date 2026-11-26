@@ -219,14 +219,20 @@ def _player_name(member):
     return Text(member.name, style=f"bold {TEXT}" if member.is_local else TEXT)
 
 
-def _render_champ_select(snapshot, now_ms):
-    view = snapshot.champ_select
-    detail = "  ".join(
-        part for part in (view.action, _countdown(view.deadline_ms, now_ms)) if part
-    )
-    parts = [_heading("CHAMP SELECT", detail), Text("")]
+def _marker(member):
+    return Text(">", style=f"bold {ACCENT}") if member.is_local else Text(" ")
 
-    header = f"bold {MUTED}"
+
+def _champion_text(member):
+    if member.state == "locked":
+        return Text(member.champion, style=f"bold {TEXT}")
+    if member.champion:
+        return Text(member.champion, style=f"italic {MUTED}")
+    return Text("—", style=MUTED)
+
+
+def _team_table(view, header):
+    """One row per slot, when the client tells us who is in each slot."""
     team = Table.grid(padding=(0, 1))
     team.add_column(no_wrap=True)  # local marker
     team.add_column(style=MUTED, no_wrap=True, min_width=4)  # position
@@ -239,35 +245,62 @@ def _render_champ_select(snapshot, now_ms):
         Text("WR", style=header), Text("CHAMPION", style=header),
     )
     for member in view.team:
-        marker = Text(">", style=f"bold {ACCENT}") if member.is_local else Text(" ")
-        if member.state == "locked":
-            champion = Text(member.champion, style=f"bold {TEXT}")
-        elif member.champion:
-            champion = Text(member.champion, style=f"italic {MUTED}")
-        else:
-            champion = Text("—", style=MUTED)
         team.add_row(
-            marker,
+            _marker(member),
             member.position,
             _player_name(member),
             _short_rank(member),
             _short_winrate(member),
-            champion,
+            _champion_text(member),
         )
-    parts.append(team)
+    return team
 
+
+def _players_table(view, header):
+    players = Table.grid(padding=(0, 1))
+    players.add_column(no_wrap=True)  # local marker
+    players.add_column(no_wrap=True, overflow="ellipsis", min_width=10)
+    players.add_column(no_wrap=True, min_width=9)
+    players.add_column(no_wrap=True)
+    players.add_row(
+        "", Text("PLAYERS", style=header), Text(view.rank_queue, style=header),
+        Text("WR", style=header),
+    )
+    named = [member for member in view.team if member.name]
+    for member in named + list(view.unmatched):
+        players.add_row(
+            _marker(member), _player_name(member), _short_rank(member), _short_winrate(member)
+        )
+    return [players]
+
+
+def _picks_table(view, header):
+    picks = Table.grid(padding=(0, 1))
+    picks.add_column(no_wrap=True)  # local marker
+    picks.add_column(style=MUTED, no_wrap=True, min_width=4)
+    picks.add_column(no_wrap=True)
+    picks.add_row("", "", Text("PICKS  names hidden by ranked", style=header))
+    for member in view.team:
+        picks.add_row(_marker(member), member.position, _champion_text(member))
+    return picks
+
+
+def _render_champ_select(snapshot, now_ms):
+    view = snapshot.champ_select
+    detail = "  ".join(
+        part for part in (view.action, _countdown(view.deadline_ms, now_ms)) if part
+    )
+    parts = [_heading("CHAMP SELECT", detail), Text("")]
+
+    header = f"bold {MUTED}"
     if view.unmatched:
-        lobby = Table.grid(padding=(0, 1))
-        lobby.add_column(no_wrap=True, overflow="ellipsis", min_width=10)
-        lobby.add_column(no_wrap=True, min_width=9)
-        lobby.add_column(no_wrap=True)
-        for member in view.unmatched:
-            lobby.add_row(_player_name(member), _short_rank(member), _short_winrate(member))
-        parts += [
-            Text(""),
-            Text("IN LOBBY  slot unknown", style=header),
-            lobby,
-        ]
+        # Ranked hid the names: list everyone from the champ-select chat (the
+        # same names Multi-Search opens), and show lanes and picks separately,
+        # since the client gives no way to tell which name is in which slot.
+        parts += _players_table(view, header)
+        parts += [Text(""), _picks_table(view, header)]
+    else:
+        parts.append(_team_table(view, header))
 
     if view.my_bans or view.their_bans:
         bans = Text("BANS  ", style=header)

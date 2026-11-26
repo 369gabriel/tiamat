@@ -138,12 +138,13 @@ def test_champ_select_view_reports_lock_hover_bans_and_deadline():
 
 
 def test_champ_select_render_shows_team_and_countdown():
+    # Names visible (normal games): one row per slot.
     view = build_champ_select_view(
         champ_select_session(),
         {0: ("Top#1", "p0"), 2: ("Me#BR1", "p2")},
-        [("Mystery#X", "other")],
+        [],
         CHAMPIONS,
-        ranks={"p0": GOLD_TWO, "p1": None, "other": DIAMOND_ONE},
+        ranks={"p0": GOLD_TWO, "p1": None},
     )
     text = render_live_text(
         ClientSnapshot(True, "ChampSelect", champ_select=view), now_ms=1_000_000
@@ -155,11 +156,33 @@ def test_champ_select_render_shows_team_and_countdown():
     assert "G2 45LP" in text and "55% 22g" in text
     assert "unranked" in text
     assert "> MID  Me#BR1" in text and "…" in text
-    assert "IN LOBBY" in text and "Mystery#X" in text and "D1 80LP" in text
-    assert "Multi-Search" not in text
     assert "hidden" in text
+    assert "PICKS" not in text
     assert "Ahri" in text and "Lux" in text
     assert "Yasuo" in text and "Yone" in text
+
+
+def test_hidden_names_list_every_chat_player_and_picks_separately():
+    # Real ranked shape: only the local player is named in the team; everyone
+    # else comes from the champ-select chat room with no slot.
+    view = build_champ_select_view(
+        champ_select_session(hidden=True),
+        {2: ("Me#BR1", "p2")},
+        [("Robertudo#PRIME", "c1"), ("Jvitor#FLU", "c2")],
+        CHAMPIONS,
+        ranks={"p2": GOLD_TWO, "c1": DIAMOND_ONE, "c2": None},
+    )
+    text = render_live_text(
+        ClientSnapshot(True, "ChampSelect", champ_select=view), now_ms=1_000_000
+    )
+    players = text[text.index("PLAYERS"):text.index("PICKS")]
+    picks = text[text.index("PICKS"):]
+
+    assert "> Me#BR1" in players and "G2 45LP" in players
+    assert "Robertudo#PRIME" in players and "D1 80LP" in players and "50% 60g" in players
+    assert "Jvitor#FLU" in players and "unranked" in players
+    assert "hidden" not in players
+    assert "TOP  Ahri" in picks and "JGL  Lux" in picks and "> MID  Zed" in picks
 
 
 def test_home_view_ranked_and_unranked():
