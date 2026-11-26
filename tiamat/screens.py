@@ -1,10 +1,15 @@
+from rich.console import Group
+from rich.padding import Padding
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList, Select, Static, TextArea
 from textual.widgets.option_list import Option
+
+from widgets import FEATURES, INFO, MAX_FEATURE_NUMBER, MUTED, feature_controls
 
 
 class EnterSelect(Select, inherit_bindings=False):
@@ -269,7 +274,7 @@ class SettingsScreen(DialogScreen):
     def compose(self) -> ComposeResult:
         with Vertical(classes="dialog settings-dialog"):
             yield Label("Configuration", classes="dialog-title")
-            yield Label("LOBBY REVEAL", classes="settings-section")
+            yield Label("MULTI-SEARCH", classes="settings-section")
             with Horizontal(classes="setting-row provider-row"):
                 yield Label("Website", classes="setting-name")
                 yield EnterSelect(
@@ -666,6 +671,58 @@ class SearchScreen(DialogScreen):
     def on_option_list_option_selected(self, event):
         if event.option_index < len(self.filtered_values):
             self.dismiss(self.filtered_values[event.option_index])
+
+    def on_button_pressed(self, _event):
+        self.dismiss(None)
+
+
+class HelpScreen(DialogScreen):
+    KEYBOARD = (
+        ("up / down  j / k", "navigate modules"),
+        ("enter", "open the highlighted module"),
+        ("space", "toggle the highlighted module"),
+        ("number + enter", "open a module by number"),
+        ("/", "filter modules"),
+        ("?", "show this help"),
+        ("u", "open the update page, when one is available"),
+        ("q  or  99 + enter", "quit"),
+        ("left / right click", "open / toggle a module"),
+    )
+
+    def compose(self) -> ComposeResult:
+        with Vertical(classes="dialog help-dialog"):
+            yield Label("Help", classes="dialog-title")
+            with VerticalScroll(id="help-body", classes="help-body"):
+                category = None
+                for feature in FEATURES:
+                    if feature.category != category:
+                        category = feature.category
+                        yield Static(category, classes="settings-section")
+                    entry = Group(
+                        Text(f"{feature.number:>2}  {feature.title}", style="bold"),
+                        Padding(Text(feature.description, style=MUTED), (0, 0, 0, 4)),
+                        Padding(Text(feature_controls(feature), style=INFO), (0, 0, 0, 4)),
+                    )
+                    yield Static(entry, classes="help-entry")
+                yield Static("KEYBOARD", classes="settings-section")
+                keys = Text()
+                width = max(len(key) for key, _ in self.KEYBOARD)
+                for index, (key, action) in enumerate(self.KEYBOARD):
+                    if index:
+                        keys.append("\n")
+                    keys.append(f"  {key.ljust(width)}  ", style=INFO)
+                    keys.append(action, style=MUTED)
+                yield Static(keys, classes="help-entry")
+                yield Static(
+                    f"Modules run 1-{MAX_FEATURE_NUMBER}. The right pane shows the "
+                    "live client state.",
+                    classes="dialog-copy",
+                )
+            with Horizontal(classes="dialog-actions"):
+                yield Button("Close", id="close", compact=True)
+
+    def on_mount(self):
+        self.query_one("#help-body", VerticalScroll).focus()
 
     def on_button_pressed(self, _event):
         self.dismiss(None)

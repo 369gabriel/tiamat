@@ -9,6 +9,7 @@ from textual.widgets import Label, ListView, Static
 from AutoAccept import AutoAccept
 from Backgrounds import change_profile_background, fetch_all_champion_skins
 from Badges import change_profile_badges
+from ClientState import DISCONNECTED, ClientSnapshot, ClientStateMonitor
 from Config import get_automation_delay, load_config, save_config
 from disconnect_reconnect_chat import Chat
 from Icons import change_profile_icon
@@ -24,6 +25,7 @@ from screens import (
     AutoBanScreen,
     BadgeScreen,
     ConfirmScreen,
+    HelpScreen,
     InputFormScreen,
     InstalockScreen,
     RagequeueScreen,
@@ -34,7 +36,14 @@ from screens import (
 from StatusChanger import change_status
 from Updater import check_for_update
 from version import __version__
-from widgets import FEATURES, CategoryItem, FeatureItem
+from widgets import (
+    FEATURES,
+    MAX_FEATURE_NUMBER,
+    OFFLINE_FEATURES,
+    CategoryItem,
+    FeatureItem,
+    LivePanel,
+)
 
 
 class TiamatApp(App):
@@ -67,6 +76,8 @@ class TiamatApp(App):
             self.config, self.receive_automation_event
         )
         self.ragequeue = RageQueue(self.config, self.receive_automation_event)
+        self.client_snapshot = DISCONNECTED
+        self.client_state = ClientStateMonitor(self.receive_client_snapshot)
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="header"):
@@ -87,10 +98,8 @@ class TiamatApp(App):
                 yield Static("MODULES", classes="panel-heading")
                 yield ListView(*feature_items, initial_index=1, id="feature-list")
             with Vertical(id="detail-panel"):
-                yield Static("AUTO ACCEPT", id="detail-title")
-                yield Static("", id="detail-description")
-                yield Static("", id="detail-meta")
-                yield Static("", id="detail-actions")
+                yield Static("LIVE", classes="panel-heading")
+                yield LivePanel(id="live-panel")
 
         yield Static("", id="shortcut-bar")
         yield Static(
@@ -157,6 +166,7 @@ class TiamatApp(App):
         self.auto_accept.stop()
         self.champion_automation.stop()
         self.ragequeue.stop()
+        self.client_state.stop()
 
     def connection_loop(self):
         previous_credentials = (None, None)
@@ -210,6 +220,8 @@ class TiamatApp(App):
         self.auto_accept.rengar = api
         self.champion_automation.rengar = api
         self.ragequeue.rengar = api
+        self.client_state.attach(api)
+        self.client_snapshot = ClientSnapshot(connected=True)
         self.account_text = account_text
         connection = self.query_one("#connection", Static)
         connection.update(account_text)
@@ -239,6 +251,13 @@ class TiamatApp(App):
                 thread=True,
                 exit_on_error=False,
             )
+            self.run_worker(
+                self.client_state.monitor,
+                name="client-state-monitor",
+                group="monitors",
+                thread=True,
+                exit_on_error=False,
+            )
 
     def client_disconnected(self):
         self.connected = False
@@ -247,8 +266,28 @@ class TiamatApp(App):
         connection = self.query_one("#connection", Static)
         connection.update(self.account_text)
         connection.set_class(False, "connected")
+        self.client_state.attach(None)
+        self.client_snapshot = DISCONNECTED
         self.add_activity("warning", "League Client disconnected; waiting to reconnect")
         self.refresh_feature_states()
+
+    def receive_client_snapshot(self, snapshot):
+        if self._stopping or not self.is_mounted:
+            return
+        if threading.get_ident() == self._ui_thread_id:
+            self.apply_client_snapshot(snapshot)
+            return
+        try:
+            self.call_from_thread(self.apply_client_snapshot, snapshot)
+        except RuntimeError:
+            return
+
+    def apply_client_snapshot(self, snapshot):
+        # A poll that was in flight when the client closed must not win.
+        if snapshot.connected and not self.connected:
+            return
+        self.client_snapshot = snapshot
+        self.render_live_panel()
 
     def receive_automation_event(self, level, message):
         if self._stopping or not self.is_mounted:
@@ -289,11 +328,32 @@ class TiamatApp(App):
         if number == 13:
             return self.chat.return_state() if self.chat else "--"
         if number == 15:
-            provider = self.config.get("lobby_reveal", {}).get(
-                "provider", "porofessor"
-            )
-            return REVEAL_PROVIDERS.get(provider, "Porofessor")
+            return self.reveal_provider_name()
         return ""
+
+    def reveal_provider_name(self):
+        provider = self.config.get("lobby_reveal", {}).get("provider", "porofessor")
+        return REVEAL_PROVIDERS.get(provider, "Porofessor")
+
+    def live_automations(self):
+        automation = self.champion_automation
+        instalock = self.feature_state(2)
+        if automation.instalock_enabled and automation.fallback_champion:
+            instalock += f"  (fallback {automation.fallback_champion})"
+        return (
+            ("Auto Accept", self.feature_state(1)),
+            ("Instalock", instalock),
+            ("AutoBan", self.feature_state(3)),
+            ("Ragequeue", self.feature_state(4)),
+        )
+
+    def render_live_panel(self):
+        if not self.is_mounted:
+            return
+        self.query_one("#live-panel", LivePanel).set_state(
+            self.client_snapshot,
+            self.live_automations(),
+        )
 
     def refresh_feature_states(self):
         if not self.is_mounted:
@@ -303,39 +363,10 @@ class TiamatApp(App):
             label = self.query_one(f"#state-{feature.number}", Label)
             label.update(state)
             label.set_class(state not in {"", "OFF", "--"}, "state-active")
-        self.show_feature(self.selected_feature_number)
+        self.render_live_panel()
 
     def show_feature(self, number):
-        feature = next(item for item in FEATURES if item.number == number)
         self.selected_feature_number = number
-        self.query_one("#detail-title", Static).update(feature.title.upper())
-        self.query_one("#detail-description", Static).update(feature.description)
-
-        state = self.feature_state(number)
-        state_text = state or "Ready"
-        if number == 15:
-            connected_text = "not required"
-        else:
-            connected_text = (
-                "available" if self.connected else "waiting for League Client"
-            )
-        meta = f"STATUS\n{state_text}\n\nCLIENT\n{connected_text}"
-        if number == 2:
-            fallback = self.champion_automation.fallback_champion or "Disabled"
-            meta += f"\n\nFALLBACK\n{fallback}"
-        self.query_one("#detail-meta", Static).update(meta)
-
-        if feature.kind == "toggle":
-            actions = "ENTER  toggle\nSPACE  toggle"
-        elif feature.kind == "configure":
-            actions = "ENTER  configure"
-            if number in {2, 3, 4}:
-                actions += "\nSPACE  enable / disable"
-        else:
-            actions = "ENTER  run"
-        if feature.destructive:
-            actions += "\nConfirmation required"
-        self.query_one("#detail-actions", Static).update(actions)
 
     def on_list_view_highlighted(self, event):
         if isinstance(event.item, FeatureItem):
@@ -375,7 +406,7 @@ class TiamatApp(App):
             event.stop()
             number = int(self.shortcut_buffer)
             self.clear_shortcut()
-            if 1 <= number <= 15:
+            if 1 <= number <= MAX_FEATURE_NUMBER:
                 self.select_feature(number)
                 self.activate_feature(number)
             elif number == 99:
@@ -405,12 +436,7 @@ class TiamatApp(App):
             )
         elif key in {"?", "question_mark"}:
             event.stop()
-            self.notify(
-                "Use arrows or j/k to navigate. Type a module number and press Enter to run it. "
-                "Left click opens a module; right click toggles it.",
-                title="Keyboard help",
-                timeout=6,
-            )
+            self.open_help()
         elif key == "q":
             event.stop()
             self.exit()
@@ -418,7 +444,9 @@ class TiamatApp(App):
     def append_shortcut(self, digit):
         if not self.shortcut_buffer:
             self.query_one("#feature-list", ListView).blur()
-        valid_commands = [str(number) for number in range(1, 16)] + ["99"]
+        valid_commands = [
+            str(number) for number in range(1, MAX_FEATURE_NUMBER + 1)
+        ] + ["99"]
         candidate = self.shortcut_buffer + digit
         if not any(command.startswith(candidate) for command in valid_commands):
             candidate = digit
@@ -501,7 +529,7 @@ class TiamatApp(App):
         self.refresh_feature_states()
 
     def activate_feature(self, number):
-        if number != 15 and not self.require_connection():
+        if number not in OFFLINE_FEATURES and not self.require_connection():
             return
         actions = {
             1: self.toggle_auto_accept,
@@ -519,11 +547,12 @@ class TiamatApp(App):
             13: self.toggle_chat,
             14: self.prepare_remove_friends,
             15: self.open_settings,
+            16: self.open_help,
         }
         actions[number]()
 
     def toggle_feature(self, number):
-        if number == 15:
+        if number in OFFLINE_FEATURES:
             return
         if not self.require_connection():
             return
@@ -777,10 +806,13 @@ class TiamatApp(App):
         if provider not in REVEAL_PROVIDERS:
             provider = "porofessor"
         self.run_feature_action(
-            "Revealing lobby",
+            "Opening multi-search",
             lambda: reveal(provider=provider),
-            f"Lobby opened with {REVEAL_PROVIDERS.get(provider, 'Porofessor')}",
+            f"Multi-Search opened in {REVEAL_PROVIDERS.get(provider, 'Porofessor')}",
         )
+
+    def open_help(self):
+        self.push_screen(HelpScreen())
 
     def open_settings(self):
         provider = self.config.get("lobby_reveal", {}).get(

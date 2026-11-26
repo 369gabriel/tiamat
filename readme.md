@@ -28,7 +28,7 @@ Use at your own risk, as some features might violate Riot Games' Terms of Servic
 * Autoban Champion
 
 ### Utility
-* Lobby Reveal
+* Multi-Search
 * Restart Client UX
 * Disconnect from chat (toggle offline)
 
@@ -105,17 +105,18 @@ uv run pytest
 | `8` | Customization | Riot ID |
 | `9` | Customization | Profile Badges |
 | `10` | Customization | Status Message |
-| `11` | Game Tools | Lobby Reveal |
+| `11` | Game Tools | Multi-Search |
 | `12` | Game Tools | Restart Client UX |
 | `13` | Social | Disconnect Chat |
 | `14` | Social | Remove All Friends |
 | `15` | Settings | Configuration |
+| `16` | Settings | Help |
 
 Configuration forms validate input inline. Destructive actions require confirmation before execution, and network work runs in the background so the interface remains responsive.
 
 Ragequeue supports League queues plus TFT Normal, Ranked, Hyper Roll, and Double Up.
 
-Configuration supports Porofessor, OP.GG, and U.GG for Lobby Reveal, plus independent `0-2s` delays for Auto Accept, Instalock, and AutoBan.
+Configuration supports Porofessor, OP.GG, and U.GG for Multi-Search, plus independent `0-2s` delays for Auto Accept, Instalock, and AutoBan.
 
 Instalock lets you select a main champion and an optional fallback. The fallback is disabled by default and can be cleared by selecting **Disabled**. If neither champion is available, Tiamat notifies you to pick manually.
 

@@ -13,8 +13,9 @@ from screens import (
     StatusScreen,
     ToggleSwitch,
 )
-from widgets import FeatureItem
-from screens import InstalockScreen
+from ClientState import ChampSelectView, ClientSnapshot, HomeView, TeamMember
+from widgets import FeatureItem, LivePanel
+from screens import HelpScreen, InstalockScreen
 from unittest.mock import Mock
 
 
@@ -31,10 +32,12 @@ def run_app_test(test, size=(120, 40)):
 def test_app_mounts_grouped_numbered_interface():
     async def check(app, _pilot):
         assert str(app.query_one("#brand", Static).render()) == "tiamat"
-        assert len(app.query(FeatureItem)) == 15
+        assert len(app.query(FeatureItem)) == 16
         assert app.query_one("#feature-1", FeatureItem).feature.title == "Auto Accept"
         assert app.query_one("#feature-14", FeatureItem).feature.title == "Remove All Friends"
         assert app.query_one("#feature-15", FeatureItem).feature.title == "Configuration"
+        assert app.query_one("#feature-16", FeatureItem).feature.title == "Help"
+        assert app.query_one("#feature-11", FeatureItem).feature.title == "Multi-Search"
         assert "League Client not detected" in str(
             app.query_one("#connection", Static).render()
         )
@@ -429,7 +432,7 @@ def test_instalock_configures_and_disables_optional_fallback(monkeypatch):
         await pilot.pause()
         assert automation.fallback_champion == "Lux"
         assert automation.instalock_enabled
-        assert "Lux" in str(app.query_one("#detail-meta", Static).render())
+        assert "Lux" in app.query_one("#live-panel", LivePanel).plain_text()
         app.open_champion_search("instalock")
         await app.workers.wait_for_complete()
         await pilot.pause()
@@ -466,7 +469,7 @@ def test_autoban_uses_the_same_champion_dropdown_as_instalock(monkeypatch):
         await pilot.pause()
         assert automation.auto_ban_champion == "Lux"
         assert automation.auto_ban_enabled
-        assert "Lux" in str(app.query_one("#detail-meta", Static).render())
+        assert "Lux" in app.query_one("#live-panel", LivePanel).plain_text()
 
     run_app_test(check)
 
@@ -567,3 +570,68 @@ def test_ragequeue_actions_remain_reachable_in_short_terminal():
         assert app.screen.query_one("#second-position", Select).has_focus
 
     run_app_test(check, size=(80, 20))
+
+
+def test_help_module_and_question_mark_open_help_without_league():
+    async def check(app, pilot):
+        assert not app.connected
+        await pilot.press("1", "6", "enter")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+        assert len(app.screen.query(".help-entry")) == 17  # 16 modules + keyboard
+        await pilot.press("escape")
+        await pilot.pause()
+        assert len(app.screen_stack) == 1
+
+        await pilot.press("question_mark")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+
+    run_app_test(check)
+
+
+def test_live_panel_waits_for_client_and_lists_armed_automations():
+    async def check(app, _pilot):
+        app.auto_accept.auto_accept_enabled = True
+        app.refresh_feature_states()
+        text = app.query_one("#live-panel", LivePanel).plain_text()
+        assert "WAITING FOR LEAGUE CLIENT" in text
+        assert "ARMED" in text
+        assert "Auto Accept" in text
+
+    run_app_test(check)
+
+
+def test_live_panel_renders_client_snapshots_and_ignores_stale_ones():
+    async def check(app, pilot):
+        champ_select = ClientSnapshot(
+            True,
+            "ChampSelect",
+            champ_select=ChampSelectView(
+                "pick",
+                None,
+                (TeamMember(1, "MID", "Player One#BR1", "Ahri", "locked", True),),
+                (),
+                (),
+            ),
+        )
+        app.apply_client_snapshot(champ_select)
+        assert app.client_snapshot.connected is False
+
+        app.connected = True
+        app.apply_client_snapshot(champ_select)
+        await pilot.pause()
+        text = app.query_one("#live-panel", LivePanel).plain_text()
+        assert "CHAMP SELECT" in text
+        assert "Player One#BR1" in text
+        assert "Ahri" in text
+
+        app.apply_client_snapshot(
+            ClientSnapshot(True, "Lobby", home=HomeView(riot_id="me#BR1", level=30))
+        )
+        text = app.query_one("#live-panel", LivePanel).plain_text()
+        assert "IN LOBBY" in text
+        assert "Level 30" in text
+
+    run_app_test(check)
+

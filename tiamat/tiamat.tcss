@@ -117,30 +117,12 @@ Screen {
 
 #detail-panel {
     width: 1fr;
-    padding: 2 4;
+    padding: 1 2 0 4;
 }
 
-#detail-title {
-    height: 2;
-    text-style: bold;
-}
-
-#detail-description {
-    height: auto;
-    max-width: 70;
-    color: $muted;
-    margin-bottom: 2;
-}
-
-#detail-meta {
-    height: auto;
-    color: $text;
-    margin-bottom: 2;
-}
-
-#detail-actions {
-    height: auto;
-    color: $info;
+#live-panel {
+    height: 1fr;
+    overflow-y: auto;
 }
 
 #shortcut-bar {
@@ -275,6 +257,22 @@ DialogScreen {
 .search-status {
     height: 1;
     color: $info;
+}
+
+.help-dialog {
+    width: 72;
+    height: 34;
+}
+
+.help-body {
+    height: 1fr;
+    scrollbar-color: $border;
+    scrollbar-background: transparent;
+}
+
+.help-entry {
+    height: auto;
+    margin-bottom: 1;
 }
 
 .settings-dialog {

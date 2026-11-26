@@ -1,6 +1,7 @@
 import webbrowser
 from urllib.parse import quote
 
+from ClientState import resolve_team_riot_ids
 from Rengar import Rengar
 
 
@@ -32,7 +33,7 @@ UGG_REGIONS = {
 
 def build_reveal_url(provider, region, summoner_names):
     if provider not in REVEAL_PROVIDERS:
-        raise ValueError("Unsupported Lobby Reveal provider")
+        raise ValueError("Unsupported Multi-Search provider")
 
     region = region.lower()
     if provider == "porofessor":
@@ -62,32 +63,8 @@ def reveal(provider="porofessor", rengar=None, open_browser=True):
         raise RuntimeError("Lobby reveal is only available during champion select")
 
     session = champ_select.json()
-    summoner_names = []
-    hidden_names = any(
-        player.get("nameVisibilityType") == "HIDDEN"
-        for player in session.get("myTeam", [])
-    )
-
-    if hidden_names:
-        participants = api.riot_request("GET", "/chat/v5/participants", "")
-        for participant in participants.json().get("participants", []):
-            if "champ-select" in participant.get("cid", ""):
-                summoner_names.append(
-                    f"{participant['game_name']}#{participant['game_tag']}"
-                )
-    else:
-        for player in session.get("myTeam", []):
-            summoner_id = player.get("summonerId")
-            if not summoner_id or summoner_id == "0":
-                continue
-            response = api.lcu_request(
-                "GET", f"/lol-summoner/v1/summoners/{summoner_id}", ""
-            )
-            if response.status_code == 200:
-                summoner = response.json()
-                summoner_names.append(
-                    f"{summoner['gameName']}#{summoner['tagLine']}"
-                )
+    names_by_cell, unmatched = resolve_team_riot_ids(api, session)
+    summoner_names = list(names_by_cell.values()) + list(unmatched)
 
     region_response = api.lcu_request("GET", "/riotclient/region-locale", "")
     region = (
